@@ -470,7 +470,7 @@ class ReviewServiceTest {
 
 
 ## Lombok
-
+- Annotation을 활용하여, Getter, Setter, Constructor, toString, hashCode등의 함수를 컴파일 시 생성토록 할 수 있음.
 #### build.gradle 설정
 
 ```gradle
@@ -489,14 +489,176 @@ dependencies {
 ```
 
 #### Annotation
+- [참조 링크: https://www.daleseo.com/lombok-popular-annotations/ - 자주 사용되는 Lombok Annotation](https://www.daleseo.com/lombok-popular-annotations/)
+- 파일을 컴파일할 때, 해당 코드들을 생성
+- Lombok을 비적용을 해서 실제 생성 코드를 확인 가능
+  - 마우스 오른쪽 클릭 > Refactor > Delombok 
 
-- "https://www.daleseo.com/lombok-popular-annotations/" 참조
+###### @Getter
+- 클래스 스코프에서 사용 시, 클래스 필드들에 대해서 getXXX() 메소드 자동 생성
+- 필드 스코프에서 사용 시, 특정 필드에 대해서 getXXX() 메소드 자동 생성
+
+###### @Setter
+- 클래스 스코프에서 사용 시, 클래스 필드들에 대해서 setXXX() 메소드 자동 생성
+- 필드 스코프에서 사용 시, 특정 필드에 대해서 setXXX() 메소드 자동 생성
+
+###### @ToString
+- 클래스의 toString() 메소드를 자동 생성
+- ``exclude`` 엘리먼트를 통해 특정 필드를 제외 가능
+- ``callSuper`` 엘리먼트를 통해 부모의 toString() 메소드 호출을 포함 가능
+```javaa
+@ToString(exclude = "password", callSuper = true)
+public class User {
+  private Long id;
+  private String username;
+  private String password;
+  private int[] scores;
+}
+```
+###### @NoArgsConstructor
+- 인자가 없는 기본 생성자 코드 생성
+- JPA의 경우, @NoArgsConstructor가 꼭 필요
+  - Repository에서 Entity를 조회하는 경우에 Entity를 생성할 때 기본생성자를 이용하기 때문
+
+###### @AllArgsConstructor
+- 모든 필드들을 인자로 받아서 생성자 코드 생성
+
+###### @RequiredArgsConstructor
+- 별도로 지정된 필드가 없으면, 인자가 없는 기본 생성자 코드 생성
+- @NonNull Annotation을 명시한 필드들을 이용한 생성자 코드 생성
+
+```java
+import lombok.*;
+
+import java.time.LocalDateTime;
+
+@ToString(exclude="email", callSuper = true)
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@RequiredArgsConstructor
+public class User {
+    @NonNull
+    private String name;
+    @NonNull
+    private String email;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+}
+```
+###### @EqualsAndHashCode
+- equals()와 hashCode()에 대한 코드 생성
 
 ###### @Data
+- ``@Getter``, ``@Setter``, ``@RequiredArgsConstructor``, ``@ToString``, ``@EqualsAndHashCode``을 한꺼번에 설정
+- 주의할 사항으로 @NoArgsConstructor 또는 @AllArgsConstructor가 존재하면, @RequiredArgsConstructor을 설정하지 않음
+  - @RequiredArgsConstructor를 명시적으로 설정해야 함
 
-- `@Getter`, `@Setter`, `@RequiredArgsConstructor`, `@ToString`, `@EqualsAndHashCode`을 한꺼번에 설정
+```java
+import lombok.*;
 
+import java.time.LocalDateTime;
 
+@NoArgsConstructor
+@AllArgsConstructor
+@RequiredArgsConstructor
+@Data
+@Builder
+public class User {
+    @NonNull
+    private String name;
+    @NonNull
+    private String email;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+}
+```
+
+###### @Builder
+- Builder를 위한 클래스 코드 생성
+- Builder의 형식을 가지고, 필드의 값을 주입
+```java
+import lombok.*;
+
+import java.time.LocalDateTime;
+
+@NoArgsConstructor
+@AllArgsConstructor
+@RequiredArgsConstructor
+@Data
+@Builder
+public class User {
+    @NonNull
+    private String name;
+    @NonNull
+    private String email;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+}
+```
+```java
+import lombok.Data;
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
+
+import java.time.LocalDateTime;
+
+@NoArgsConstructor
+@AllArgsConstructor
+@RequiredArgsConstructor
+@Data
+public class User {
+    @NonNull
+    private String name;
+    @NonNull
+    private String email;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+
+    public static UserBuilder builder() {
+        return new UserBuilder();
+    }
+
+    public static class UserBuilder {
+        private @NonNull String name;
+        private @NonNull String email;
+        private LocalDateTime createdAt;
+        private LocalDateTime updatedAt;
+
+        UserBuilder() {
+        }
+
+        public UserBuilder name(@NonNull String name) {
+            this.name = name;
+            return this;
+        }
+
+        public UserBuilder email(@NonNull String email) {
+            this.email = email;
+            return this;
+        }
+
+        public UserBuilder createdAt(LocalDateTime createdAt) {
+            this.createdAt = createdAt;
+            return this;
+        }
+
+        public UserBuilder updatedAt(LocalDateTime updatedAt) {
+            this.updatedAt = updatedAt;
+            return this;
+        }
+
+        public User build() {
+            return new User(name, email, createdAt, updatedAt);
+        }
+
+        public String toString() {
+            return "User.UserBuilder(name=" + this.name + ", email=" + this.email + ", createdAt=" + this.createdAt + ", updatedAt=" + this.updatedAt + ")";
+        }
+    }
+}
+```
 
 ## Swagger
 - Maven Repository에서 "[SpringFox Boot Starter](https://mvnrepository.com/artifact/io.springfox/springfox-boot-starter) " 검색

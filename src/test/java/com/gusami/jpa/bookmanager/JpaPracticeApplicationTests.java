@@ -1,4 +1,4 @@
-package com.gusami.jpa.practice;
+package com.gusami.jpa.bookmanager;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;

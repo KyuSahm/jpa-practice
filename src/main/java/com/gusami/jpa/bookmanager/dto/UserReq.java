@@ -1,4 +1,4 @@
-package com.gusami.jpa.practice.dto;
+package com.gusami.jpa.bookmanager.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

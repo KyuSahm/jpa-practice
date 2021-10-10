@@ -1,4 +1,4 @@
-package com.gusami.jpa.practice;
+package com.gusami.jpa.bookmanager;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
