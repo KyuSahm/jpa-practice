@@ -1,4 +1,4 @@
-package com.gusami.example.dto;
+package com.gusami.jpa.practice.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

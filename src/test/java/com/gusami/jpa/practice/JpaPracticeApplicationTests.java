@@ -1,4 +1,4 @@
-package com.gusami.example;
+package com.gusami.jpa.practice;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
