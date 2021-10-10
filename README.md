@@ -671,4 +671,67 @@ implementation group: 'io.springfox', name: 'springfox-boot-starter', version: '
 #### 동작 확인
 - "http://localhost:8080/swagger-ui/"에 접속하여 확인
 
- 
+## H2 In-Memory Database
+- Java 기반의 경량화된 데이터베이스
+- 두 가지 동작 방식을 지원
+  - 파일로 저장
+    - 실제 DB로 데이터를 유지
+  - 인 메모리 기반으로 동작
+    - 인스턴스가 동작하는 시점에만 유지
+    - 프로젝트 초기 개발 기간에 테스트 DB로 사용
+    - 유지 보수 기간에는 JUnit 테스트 용 DB로 사용
+- build.gradle (의존성 추가)
+```gradle
+dependencies {
+  ...
+	runtimeOnly 'com.h2database:h2'
+  ...
+}
+```
+- 설정 파일 교체
+  - 최근에는 properties 파일 보다는 yml 파일을 사용하는 추세
+  - yml 파일이 계층적인 구조를 더 잘 표현   
+  - src\main\resources\application.properties 삭제
+  - src\main\resources\application.yml 파일 추가
+
+- H2 database console enable
+  - default 값은 false로 disable되어 있음
+  - src\main\resources\application.yml의 설정값 추가 
+```yaml
+spring:
+  h2:
+    console:
+      enabled: true
+```
+  - console 창에서 H2 관련 로그 확인
+```console
+2021-10-10 22:50:05.722  INFO 15536 --- [           main] o.s.b.a.h2.H2ConsoleAutoConfiguration    : H2 console available at '/h2-console'. Database available at 'jdbc:h2:mem:7900322a-d9dc-45cf-ac21-7a4eade2fff1'
+```
+- H2 database Login on Web Browser
+  - 웹 브라우저에서 http://localhost:8080/h2-console 접속
+  - JDBC URL에 Console에 기록된 URL을 복사해서 입력 후, "connect"
+  - 암호는 입력할 필요 없음
+  - 접속 후, H2 Console에서 "show databases" 명령을 입력한 후, Run => 데이터베이스 목록
+
+- H2 database Login on IntelliJ
+  - Community Edition에는 지원안함
+  - 화면 우측에 위치한 "Database"를 클릭
+  - "+" 버튼 클릭
+  - "Data Source" >> "H2" 선택
+  - H2 Driver를 설치
+  - JDBC URL 입력
+  - Connection Type
+    - Remote
+    - In-memory : 선택
+    - Embedded
+    - URL Only
+  - "Test Connection"으로  연결 확인
+  - "OK" 버튼을 눌러서 설정 완료
+  - 화면에 SQL 입력 창과 오른쪽에 Schemas들을 보여주는 Pane가 생김
+- Server Port 변경
+  - src\main\resources\application.yml의 설정값 추가
+  - 8080 Port가 아닌 다른 값일 경우, 설정 
+```yaml
+serer:
+  port: 8090
+```

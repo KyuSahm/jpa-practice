@@ -1,0 +1,6 @@
+spring:
+  h2:
+    console:
+      enabled: true
+serer:
+  port: 8080
