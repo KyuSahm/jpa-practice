@@ -56,19 +56,15 @@
 - 데이터베이스 도구, SQL
 
 #### 단축키(Short Key) 사용법
-
 - 에디터 창에서 프로젝트 창으로 이동: Alt + 1
 - 프로젝트 창에서 에디터 창으로 이동
-
   - 프로젝트 창을 닫으면서 이동: Alt + 1
   - 프로젝트 창을 다지 않고 이동: Esc Key
 - 프로젝트 창에서 클래스 파일 선택 후, 소스 미리 보기: Space Key
-
   - 소스 미리 보기 상태에서 화살표 키를 이용해 클래스 파일 이동 가능
 - 에디터 창 최대화/최소화: Ctrl + Shift + F12 
 - 여러 개의 에디터 창 이동: Ctrl + Tab 키를 눌러서 팝업 창을 띄운 후, Tab키를 계속 눌러 소스 선택 
-- 새 파일 생성 
-  
+- 새 파일 생성
   - 에디터 창에서 Ctrl + Alt + Insert 
   - 프로젝트 창에서 Alt + Insert
 - 에디터 창에서 커서 이동    
@@ -218,10 +214,168 @@ bookmanager // com.fastcampus.jpa.bookmanager이라는 패키지가 기본적으
   - 8
 
 ## Annotation Summary
+#### JPA 관련
+- [JPA 관련 Annotation 정리사이트](https://www.icatpark.com/entry/JPA-%EA%B8%B0%EB%B3%B8-Annotation-%EC%A0%95%EB%A6%AC)
+- Spring Boot 설정
+  - spring.jpa.hibernate.ddl-auto 설정이 create 또는 update일 경우
+    - Spring 프로젝트 시작 시, EntityManager이 자동으로 테이블 생성(By DDL)
+
+###### @Entity
+- 데이터베이스의 테이블과 일대일로 매칭되는 객체단위
+- Entity 객체의 인스턴스 하나가 테이블에서 하나의 레코드 값을 의미
+- 객체 인스턴스를 구분하기 위한 유일한 키값을 가짐
+  - 테이블 상의 Primary Key와 같은 의미를 가지며, @Id Annotation으로 표기
+
+###### @Table
+- 명시적으로 데이터베이스상의 테이블 명칭을 지정
+- 명시적으로 작성하는 것이 관례
+  - 데이터베이스 상에서 보편적으로 사용되는 명명법이 UnderScore 원칙 때문
+- 지정하지 않으면 Entity 클래스의 이름 그대로 CamelCase를 유지한 채로 테이블 생성
+
+```java
+@Entity
+@Table(name = "USER")
+public class User {
+    @Id
+    @GeneratedValue
+    private Long id;
+    @NonNull
+    private String name;
+    @NonNull
+    private String email;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+}
+```
+###### @Id
+- 데이터베이스의 테이블은 기본적으로 유일한 키(Primary Key) 가짐
+- JPA에서도 Entity 클래스 상에 PK를 명시적으로 표시해야 함
+- @Id Annotation을 이용해 PK임을 지정
+
+```java
+@Id
+@Column
+private String code;
+```
+
+###### @GeneratedValue
+- Primary Key칼럼의 데이터 형식은 정해져 있지 않으나, 유일한 키값을 가져야 함
+  - BigInteger에 해당하는 Java의 Long 타입을 주로 사용
+- MySQL은 auto increment 방식을 사용
+  - 숫자형의 PK 칼럼 속성을 auto increment로 지정
+  - 자동으로 새로운 레코드가 생성 될때마다, 마지막 PK값에서 자동으로 +1을 해줌
+  - @GeneratedValue Annotation의 strategy 속성을 GenerationType.IDENTITY로 지정
+    - EntityManager이 GenerationType.IDENTITY 속성을 통해 auto increment 칼럼인 것을 인지함
+```java
+@Id
+@GeneratedValue(strategy = GenerationType.IDENTITY)
+private Long id;
+```        
+- Oracle은 Sequence 방식을 사용
+  - Sequence 객체를 생성해 두고, 호출할 때마다 기존 값의 +1이 된 값을 반환해 주는 방식
+  - @GeneratedValue Annotation의 strategy 속성을 GenerationType.SEQUENCE로 지정
+```java
+@Id
+@SequenceGenerator(name="seq", sequenceName="jpa_sequence")
+@GeneratedValue(strategy=GenerationType.SEQUENCE, generator="seq")
+private Long id;
+```  
+
+#### 복합 키(Composite Primary Keys)
+- [참조사이트 - Composite Primary Keys in JPA](https://www.baeldung.com/jpa-composite-primary-keys)
+- 두 개이상의 칼럼이 하나의 Primary Key를 구성
+- 복합 키를 정의하는 두가지 방법이 존재
+  - @IdClass Annotation 사용
+  - @EmbeddedId Annotation 사용 
+
+###### @IdClass
+- 가정
+  - Account 테이블이 존재
+  - 복합 키를 형성하는 accountNumber과 accountType이 존재
+- accountNumber과 accountType을 가진 AccountId 클래스 생성
+```java
+public class AccountId implements Serializable {
+    private String accountNumber;
+
+    private String accountType;
+
+    // default constructor
+    public AccountId(String accountNumber, String accountType) {
+        this.accountNumber = accountNumber;
+        this.accountType = accountType;
+    }
+
+    // equals() and hashCode()
+}
+```
+- AccountId 클래스를 Entity인 Account와 Annotation을 이용해서 연결
+  - @IdClass Annotation을 이용
+  - Entity인 Account 클래스 내에 AccountId 클래스의 필드들을 중복 선언해야 함
+    - 해당 필드들을 @Id를 통해 Annotation해야 함
+```java
+@Entity
+@IdClass(AccountId.class)
+public class Account {
+    @Id
+    private String accountNumber;
+
+    @Id
+    private String accountType;
+
+    // other fields, getters and setters
+}
+```
+###### @EmbeddedId
+- 가정
+  - Book 테이블이 존재
+  - Composite Primary Key를 형성하는 title와 language가 존재
+- Primary Key를 정의한 클래스인 BookId는 @Embeddable로 Annotate해야 함
+```java
+@Embeddable
+public class BookId implements Serializable {
+    @Column(name = "title")
+    private String title;
+    @Column(name = "lang")
+    private String language;
+
+    // default constructor
+
+    public BookId(String title, String language) {
+        this.title = title;
+        this.language = language;
+    }
+
+    // getters, equals() and hashCode() methods
+}
+```
+- Entity인 Book 클래스의 내부에 BookId를 Embedding함
+ - @EmbeddedId를 사용
+```java
+@Entity(name = "book")
+public class Book {
+    @EmbeddedId
+    private BookId bookId;
+    // constructors, other fields, getters and setters
+}
+```
+###### @IdClass vs @EmbeddedId
+- @IdClass를 사용할 경우, Primary Key 칼럼들을 두 개의 클래스에서 중복 선언해야 함
+  - AccountId와 Account 클래스에서 각각 한번씩
+- @EmbeddedId는 한번만 하면 됨
+- SQL Query 비교
+```sql
+--With @IdClass, the query is a bit simpler
+SELECT account.accountNumber FROM Account account;
+--With @EmbeddedId, we have to do one extra traversal
+SELECT book.bookId.title FROM Book book;
+```
+- @IdClass는 복합 키(Composite Key)에 대한 수정이 없을 경우에 유리
+- @EmbeddedId는 복합 키를 오브젝트로서 자주 사용하는 경우에 유리
+
 #### Test 관련
 - [Spring Test관련 Annotation 정리 사이트](https://happyer16.tistory.com/entry/Spring-Boot-Test-%EC%A2%85%ED%95%A9-%EC%A0%95%EB%A6%AC)
 ###### @SpringBootTest
-- 통합 테스트
+- Spring Context를 로딩해서 통합 테스트를 실시
 - 모든 빈을 등록하여 테스트를 진행
 - classes 속성을 이용하여 필요한 빈만 등록하는 것이 유리
 - @RunWith: JUnit의 러너를 사용하는게 아니라 지정된 SpringRunner 클래스를 사용
@@ -734,4 +888,110 @@ spring:
 ```yaml
 serer:
   port: 8090
+```
+
+## Repository Interface
+- 사용자는 Spring Data Jpa Library의 JpaRepository Interface를 상속한 Interface 정의
+- Spring Data Jpa Library가 동적으로 사용자가 정의한 DB 관련 Interface를 구현해 줌
+- Generic을 이용해서, Entity 클래스 타입과 Primary Key 타입을 명시
+- 기본적으로, JpaRepository에 정의된 메소드를 상속
+  - JpaRepository<T, ID>
+    - findAll
+    - findAll(Sort sort) // Sorting 관련
+    - findAllById(Iterable\<ID\> ids); // SQL in 구문 사용
+    - saveAll(Iterable\<S\> entities); // 여러 건을 한번에 저장
+    - flush // DB에 반영     
+    - saveAndFlush
+    - saveAllAndFlush
+    - deleteInBatch(Iterable\<T\> entities); // 여러 건을 한번에 지움
+    - deleteAllInBatch() // 테이블 전체 데이터 삭제
+    - deleteAllByIdInBatch
+    - deleteAllInBatch
+    - getOne(ID id) // Id 값을 이용해서 한 개의 레코드만 가져옴
+    - getById
+  - CrudRepository<T, ID> : 대부분의 중요한 메소드를 정의
+    - save
+    - saveAll
+    - findById(Id id) // Id 값을 이용해서 한 개의 레코드만 가져옴
+    - existsById(Id id) // Id 값을 이용해서 레코드의 존재 유무
+    - findAll
+    - findAllById
+    - count() // 전체 레코드 개수
+    - deleteById(Id id) // 특정 ID값의 레코드 삭제
+    - delete
+    - deleteAllById
+    - deleteAll
+    - deleteAll  
+
+- 사용자 정의 Interface
+```java
+package com.gusami.jpa.bookmanager.repository;
+
+import com.gusami.jpa.bookmanager.domain.User;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface UserRepository extends JpaRepository<User, Long> {
+
+}
+```
+- Spring Data Jpa 내부의 Interface
+```java
+@NoRepositoryBean
+public interface JpaRepository<T, ID> extends PagingAndSortingRepository<T, ID>, QueryByExampleExecutor<T> {
+.....
+}
+```
+```java
+public interface QueryByExampleExecutor<T> {
+}
+```
+```java
+public interface PagingAndSortingRepository<T, ID> extends CrudRepository<T, ID> {
+	Iterable<T> findAll(Sort sort);
+	Page<T> findAll(Pageable pageable);
+}
+```
+```java
+@NoRepositoryBean
+public interface CrudRepository<T, ID> extends Repository<T, ID> {
+```
+```java
+@Indexed
+public interface Repository<T, ID> {
+}
+```
+- 아래 코드와 같이, 새로운 User 객체를 생성해서 Repository Interface의 save 메소드를 두 번 호출
+  - 두 개의 User Record가 DB에 저장
+```java
+@NoArgsConstructor
+@AllArgsConstructor
+@RequiredArgsConstructor
+@Data
+@Builder
+@Entity
+public class User {
+    @Id
+    @GeneratedValue
+    private Long id;
+    @NonNull
+    private String name;
+    @NonNull
+    private String email;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+}
+```
+```java
+@SpringBootTest
+class UserRepositoryTest {
+    @Autowired
+    private UserRepository userRepository;
+
+    @Test
+    void crud() { // create, read, update, delete
+        userRepository.save(new User());
+        userRepository.save(new User());
+        System.out.println(">>> " + userRepository.findAll());
+    }
+}
 ```

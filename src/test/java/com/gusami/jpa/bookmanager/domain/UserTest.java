@@ -18,7 +18,7 @@ class UserTest {
 
         System.out.println(">>>" + user);
 
-        User user1 = new User("martin", "martin@gmail.com", LocalDateTime.now(), LocalDateTime.now());
+        User user1 = new User(null, "martin", "martin@gmail.com", LocalDateTime.now(), LocalDateTime.now());
         System.out.println(">>>" + user1);
 
         User user2 = new User("busi", "busi@gamil.com");
