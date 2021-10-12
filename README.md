@@ -281,6 +281,13 @@ private Long id;
 private Long id;
 ```  
 
+###### @Transactional
+- [링크 - @Transactional 정리 및 예제](https://goddaehee.tistory.com/167)
+- 메소드위에 @Transactional이 추가되면, 이 클래스에 트랜잭션 기능이 적용된 프록시 객체가 생성
+- 프록시 객체는 @Transactional이 포함된 메소드가 호출될 경우
+  - PlatformTransactionManager를 사용하여 트랜잭션을 시작
+  - 정상 수행 여부에 따라 Commit 또는 Rollback 처리를 수행
+
 #### 복합 키(Composite Primary Keys)
 - [참조사이트 - Composite Primary Keys in JPA](https://www.baeldung.com/jpa-composite-primary-keys)
 - 두 개이상의 칼럼이 하나의 Primary Key를 구성
@@ -889,7 +896,6 @@ spring:
 serer:
   port: 8090
 ```
-
 ## Repository Interface
 - 사용자는 Spring Data Jpa Library의 JpaRepository Interface를 상속한 Interface 정의
 - Spring Data Jpa Library가 동적으로 사용자가 정의한 DB 관련 Interface를 구현해 줌
@@ -994,4 +1000,345 @@ class UserRepositoryTest {
         System.out.println(">>> " + userRepository.findAll());
     }
 }
+```
+## 실습 환경 준비
+#### Entity Class 정의
+```java
+package com.gusami.jpa.bookmanager.domain;
+
+import lombok.*;
+
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.Id;
+import java.time.LocalDateTime;
+
+@NoArgsConstructor
+@AllArgsConstructor
+@RequiredArgsConstructor
+@Data
+@Builder
+@Entity
+public class User {
+    @Id
+    @GeneratedValue
+    private Long id;
+    @NonNull
+    private String name;
+    @NonNull
+    private String email;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+}
+```
+#### Test 환경에서 기본 레코드 삽입
+- src > test 아래에 "resources" 디렉토리 생성
+- "resources" 아래에서 data.sql 파일 생성
+  - Spring boot Test가 실행할 경우에만 SQL이 실행
+- 만약, src > main > resources 아래에 data.sql 파일을 생성하면?
+  - SpringBoot가 실행할 때마다 SQL문들이 실행
+
+- application.yml
+  - h2 console 출력 Enable
+  - SpringBoot Start/Stop 시에 테이블 Drop and Create and then Drop Table and sequences
+  - SQL문을 console에 출력하기 위해 show_sql 옵션 추가
+  - SQL문을 정렬해서 잘 볼 수 있게 하기 위해 format_sql 옵션 추가
+  - data.sql파일에 등록된 DML문들을 DDL(Create Table)이 수행한 후에 수행되도록, defer-datasource-initialization enable
+
+```yml
+spring:
+  h2:
+    console:
+      enabled: true
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        format_sql: true
+        show_sql: true
+    defer-datasource-initialization: true
+server:
+  port: 8080
+```  
+
+#### Table 및 Sequence 생성
+- Entity Class정의와 설정(application.yml)에 의해 Spring Boot 실행시마다 자동 생성
+```sql
+Hibernate: 
+    
+    drop table if exists user CASCADE 
+Hibernate: 
+    
+    drop sequence if exists hibernate_sequence
+Hibernate: create sequence hibernate_sequence start with 1 increment by 1
+Hibernate: 
+    
+    create table user (
+       id bigint not null,
+        created_at timestamp,
+        email varchar(255),
+        name varchar(255),
+        updated_at timestamp,
+        primary key (id)
+    )
+```
+
+#### Repository Interface 정의
+```java
+package com.gusami.jpa.bookmanager.repository;
+
+import com.gusami.jpa.bookmanager.domain.User;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface UserRepository extends JpaRepository<User, Long> {
+}
+```
+#### 
+
+#### Repository Test 정의
+```java
+package com.gusami.jpa.bookmanager.repository;
+
+import com.gusami.jpa.bookmanager.domain.User;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+
+import java.util.List;
+import java.util.function.Consumer;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+@SpringBootTest
+class UserRepositoryTest {
+    @Autowired
+    private UserRepository userRepository;
+
+    @Test
+    void crud() { // create, read, update, delete
+        List<User> users = userRepository.findAll();
+        users.forEach(System.out::println);
+    }
+}
+```
+
+#### 메소드별 작동 방식
+###### findAll()
+- 테이블의 모든 데이터를 검색
+```java
+@Test
+    void crud() { // create, read, update, delete
+        List<User> users = userRepository.findAll();
+        users.forEach(System.out::println);
+    }
+```
+```sql
+Hibernate: 
+    select
+        user0_.id as id1_0_,
+        user0_.created_at as created_2_0_,
+        user0_.email as email3_0_,
+        user0_.name as name4_0_,
+        user0_.updated_at as updated_5_0_ 
+    from
+        user user0_
+```
+###### findAll(Sort sort)
+- 테이블의 모든 데이터를 검색, name field를 기준으로 내림차순으로 정렬해서 보여줌
+```java
+@SpringBootTest
+class UserRepositoryTest {
+    @Autowired
+    private UserRepository userRepository;
+
+    @Test
+    void crud() { // create, read, update, delete
+        List<User> users = userRepository.findAll(Sort.by(Sort.Direction.DESC, "name"));
+        users.forEach(System.out::println);
+    }
+}
+```
+```sql
+Hibernate: 
+    select
+        user0_.id as id1_0_,
+        user0_.created_at as created_2_0_,
+        user0_.email as email3_0_,
+        user0_.name as name4_0_,
+        user0_.updated_at as updated_5_0_ 
+    from
+        user user0_ 
+    order by
+        user0_.name desc
+```
+###### findAllById(Iterable<ID> ids);
+- 특정 ID 값들을 가지는 레코드를 검색
+- SQL의 IN 구문을 사용
+```java
+@SpringBootTest
+class UserRepositoryTest {
+    @Autowired
+    private UserRepository userRepository;
+
+    @Test
+    void crud() { // create, read, update, delete
+        //List<User> users = userRepository.findAllById(Arrays.asList(1L, 3L, 5L));
+        List<User> users = userRepository.findAllById(Lists.newArrayList(1L, 3L, 5L));
+        users.forEach(System.out::println);
+    }
+}
+```sql
+select
+        user0_.id as id1_0_,
+        user0_.created_at as created_2_0_,
+        user0_.email as email3_0_,
+        user0_.name as name4_0_,
+        user0_.updated_at as updated_5_0_ 
+    from
+        user user0_ 
+    where
+        user0_.id in (
+            ? , ? , ?
+        )
+```
+###### List\<S\> saveAll(Iterable\<S\> entities);
+- 여러 레코들을 삽입
+- Insert 구문이 여러번 수행
+```java
+@SpringBootTest
+class UserRepositoryTest {
+    @Autowired
+    private UserRepository userRepository;
+
+    @Test
+    void crud() { // create, read, update, delete
+        User user1 = new User("jack", "jack@fastcampus.com");
+        User user2 = new User("steve", "steve@fastcampus.com");
+
+        List<User> users = userRepository.saveAll(Lists.newArrayList(user1, user2));
+        userRepository.findAll().forEach(System.out::println);
+    }
+}
+```
+```sql
+Hibernate: 
+    call next value for hibernate_sequence
+Hibernate: 
+    call next value for hibernate_sequence
+Hibernate: 
+    insert 
+    into
+        user
+        (created_at, email, name, updated_at, id) 
+    values
+        (?, ?, ?, ?, ?)
+Hibernate: 
+    insert 
+    into
+        user
+        (created_at, email, name, updated_at, id) 
+    values
+        (?, ?, ?, ?, ?)
+```
+
+###### S save(S entity);
+- 하나의 레코드 삽입
+```java
+@SpringBootTest
+class UserRepositoryTest {
+    @Autowired
+    private UserRepository userRepository;
+
+    @Test
+    void crud() { // create, read, update, delete
+        User user1 = new User("jack", "jack@fastcampus.com");
+        User user = userRepository.save(user1);
+        userRepository.findAll().forEach(System.out::println);
+    }
+}
+```
+```sql
+Hibernate: 
+    call next value for hibernate_sequence
+Hibernate: 
+    insert 
+    into
+        user
+        (created_at, email, name, updated_at, id) 
+    values
+        (?, ?, ?, ?, ?)
+```
+###### @Deprecated T getOne(ID id);
+- ID를 이용해 하나의 레코드를 조회
+- Proxy를 사용해야 하는데, 세션이 없어서 초기화를 못함
+```console
+could not initialize proxy [com.gusami.jpa.bookmanager.domain.User#1] - no Session
+org.hibernate.LazyInitializationException: could not initialize proxy [com.gusami.jpa.bookmanager.domain.User#1] - no Session
+	at app//org.hibernate.proxy.AbstractLazyInitializer.initialize(AbstractLazyInitializer.java:170)
+	at app//org.hibernate.proxy.AbstractLazyInitializer.getImplementation(AbstractLazyInitializer.java:310)
+	at app//org.hibernate.proxy.pojo.bytebuddy.ByteBuddyInterceptor.intercept(ByteBuddyInterceptor.java:45)
+	at app//org.hibernate.proxy.ProxyConfiguration$InterceptorDispatcher.intercept(ProxyConfiguration.java:95)
+	at app//com.gusami.jpa.bookmanager.domain.User$HibernateProxy$TziRGmA4.toString(Unknown Source)
+```
+- Lazy Fetch 방식을 사용
+- @Transactional Annotation을 이용해서 Proxy 객체 생성 가능
+```java
+@SpringBootTest
+class UserRepositoryTest {
+    @Autowired
+    private UserRepository userRepository;
+
+    @Test
+    @Transactional
+    void crud() { // create, read, update, delete
+        User user = userRepository.getOne(1L);
+        System.out.println(user);
+    }
+}
+```sql
+Hibernate: 
+    select
+        user0_.id as id1_0_0_,
+        user0_.created_at as created_2_0_0_,
+        user0_.email as email3_0_0_,
+        user0_.name as name4_0_0_,
+        user0_.updated_at as updated_5_0_0_ 
+    from
+        user user0_ 
+    where
+        user0_.id=?
+```
+
+###### Optional\<T\> findById(ID id);
+- ID를 이용해 하나의 레코드를 조회
+- 존재하지 않을 경우, Optional.empty 반납
+- Eager Fetch 방식을 사용
+```java
+@SpringBootTest
+class UserRepositoryTest {
+    @Autowired
+    private UserRepository userRepository;
+
+    @Test
+    @Transactional
+    void crud() { // create, read, update, delete
+        Optional<User> user = userRepository.findById(100L);
+        System.out.println(user);
+    }
+}
+```
+```sql
+Hibernate: 
+    select
+        user0_.id as id1_0_0_,
+        user0_.created_at as created_2_0_0_,
+        user0_.email as email3_0_0_,
+        user0_.name as name4_0_0_,
+        user0_.updated_at as updated_5_0_0_ 
+    from
+        user user0_ 
+    where
+        user0_.id=?
 ```
