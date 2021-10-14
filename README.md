@@ -270,7 +270,7 @@ private String code;
 @Id
 @GeneratedValue(strategy = GenerationType.IDENTITY)
 private Long id;
-```        
+```
 - Oracle은 Sequence 방식을 사용
   - Sequence 객체를 생성해 두고, 호출할 때마다 기존 값의 +1이 된 값을 반환해 주는 방식
   - @GeneratedValue Annotation의 strategy 속성을 GenerationType.SEQUENCE로 지정
@@ -279,7 +279,7 @@ private Long id;
 @SequenceGenerator(name="seq", sequenceName="jpa_sequence")
 @GeneratedValue(strategy=GenerationType.SEQUENCE, generator="seq")
 private Long id;
-```  
+```
 
 ###### @Transactional
 - [링크 - @Transactional 정리 및 예제](https://goddaehee.tistory.com/167)
@@ -1061,7 +1061,7 @@ spring:
     defer-datasource-initialization: true
 server:
   port: 8080
-```  
+```
 
 #### Table 및 Sequence 생성
 - Entity Class정의와 설정(application.yml)에 의해 Spring Boot 실행시마다 자동 생성
@@ -1095,8 +1095,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface UserRepository extends JpaRepository<User, Long> {
 }
 ```
-#### 
-
 #### Repository Test 정의
 ```java
 package com.gusami.jpa.bookmanager.repository;
@@ -1313,7 +1311,19 @@ Hibernate:
 
 ###### Optional\<T\> findById(ID id);
 - ID를 이용해 하나의 레코드를 조회
-- 존재하지 않을 경우, Optional.empty 반납
+- toString()의 정의
+```java
+public final class Optional<T> {
+...
+@Override
+    public String toString() {
+        return value != null
+            ? String.format("Optional[%s]", value)
+            : "Optional.empty";
+    }
+...
+}
+```
 - Eager Fetch 방식을 사용
 ```java
 @SpringBootTest
@@ -1342,3 +1352,449 @@ Hibernate:
     where
         user0_.id=?
 ```
+###### save() and flush() or saveAndFlush();
+- [링크 - Flush란?](https://gmlwjd9405.github.io/2019/08/07/what-is-flush.html)
+- DB에 실제 데이터를 반영
+- 영속성 컨텍스트의 변경 내용을 DB 에 반영하는 것을 말한다.
+- Transaction commit 이 일어날 때 flush가 동작
+  - 쓰기 지연 저장소에 쌓아 놨던 INSERT, UPDATE, DELETE SQL들이 DB에 날라감
+  - 주의! 영속성 컨텍스트를 비우는 것이 아님
+  - 쉽게 얘기해서 영속성 컨텍스트의 변경 사항들과 DB의 상태를 맞추는 작업이다.
+  - 플러시는 영속성 컨텍스트의 변경 내용을 DB에 동기화
+- 로그 상에는 별 특이점이 보이질 않음 (추후에 영속성 컨텍스트에서 다룸) 
+```java
+@SpringBootTest
+class UserRepositoryTest {
+    @Autowired
+    private UserRepository userRepository;
+
+    @Test
+    @Transactional
+    void crud() { // create, read, update, delete
+        User user1 = new User("jack", "jack@fastcampus.com");
+        User user = userRepository.saveAndFlush(user1);
+        //User user = userRepository.save(user1);
+        //userRepository.flush();
+        userRepository.findAll().forEach(System.out::println);
+    }
+}
+```
+```sql
+Hibernate: 
+    call next value for hibernate_sequence
+Hibernate: 
+    insert 
+    into
+        user
+        (created_at, email, name, updated_at, id) 
+    values
+        (?, ?, ?, ?, ?)
+```
+###### long count();
+- 레코드의 개수를 셈
+```java
+@Test
+@Transactional
+void crud() { // create, read, update, delete
+    long count = userRepository.count();
+    System.out.println(count);
+}
+```
+```sql
+Hibernate: 
+    select
+        count(*) as col_0_0_ 
+    from
+        user user0_
+```
+###### boolean existsById(ID id);
+- 주어진 Primary Key인 ID의 존재 여부 확인
+```java
+@Test
+@Transactional
+void crud() { // create, read, update, delete
+    boolean exist = userRepository.existsById(1L);
+    System.out.println(exist);
+}
+```
+```sql
+Hibernate: 
+    select
+        count(*) as col_0_0_ 
+    from
+        user user0_ 
+    where
+        user0_.id=?
+```
+###### void delete(T entity);
+- 주어진 Entity를 삭제
+```java
+@Test
+@Transactional
+void crud() { // create, read, update, delete
+
+    userRepository.delete(userRepository.findById(1L).orElseThrow(RuntimeException::new));
+    userRepository.findAll().forEach(System.out::println);
+}
+```
+```sql
+Hibernate: 
+    select
+        user0_.id as id1_0_0_,
+        user0_.created_at as created_2_0_0_,
+        user0_.email as email3_0_0_,
+        user0_.name as name4_0_0_,
+        user0_.updated_at as updated_5_0_0_ 
+    from
+        user user0_ 
+    where
+        user0_.id=?
+Hibernate: 
+    delete 
+    from
+        user 
+    where
+        id=?
+```
+###### void deleteById(ID id);
+- 특정 ID의 Entity를 제거
+- Select Query가 먼저 실행되는 이유
+  - 해당 Entity가 존재하는지를 먼저 확인
+```java
+@Test
+@Transactional
+void crud() {
+    userRepository.deleteById(1L);
+    userRepository.findAll().forEach(System.out::println);
+}
+```
+```sql
+Hibernate: 
+    select
+        user0_.id as id1_0_0_,
+        user0_.created_at as created_2_0_0_,
+        user0_.email as email3_0_0_,
+        user0_.name as name4_0_0_,
+        user0_.updated_at as updated_5_0_0_ 
+    from
+        user user0_ 
+    where
+        user0_.id=?
+Hibernate: 
+    delete 
+    from
+        user 
+    where
+        id=?
+```
+###### void deleteAll();
+- 모든 데이터를 지움
+- Delete Query를 여러 번 수행
+```java
+@Test
+@Transactional
+void crud() {
+    userRepository.deleteAll();
+    userRepository.findAll().forEach(System.out::println);
+}
+```
+```sql
+Hibernate: 
+    select
+        user0_.id as id1_0_,
+        user0_.created_at as created_2_0_,
+        user0_.email as email3_0_,
+        user0_.name as name4_0_,
+        user0_.updated_at as updated_5_0_ 
+    from
+        user user0_
+Hibernate: 
+    delete 
+    from
+        user 
+    where
+        id=?
+Hibernate: 
+    delete 
+    from
+        user 
+    where
+        id=?
+Hibernate: 
+    delete 
+    from
+        user 
+    where
+        id=?
+Hibernate: 
+    delete 
+    from
+        user 
+    where
+        id=?
+Hibernate: 
+    delete 
+    from
+        user 
+    where
+        id=?
+```
+
+###### void deleteAll(Iterable\<? extends T\> entities);
+- Delete Query를 여러 번 수행
+```java
+@Test
+@Transactional
+void crud() {
+    userRepository.deleteAll(userRepository.findAllById(Arrays.asList(1L, 3L, 5L)));
+    userRepository.findAll().forEach(System.out::println);
+}
+```
+```sql
+Hibernate: 
+    select
+        user0_.id as id1_0_,
+        user0_.created_at as created_2_0_,
+        user0_.email as email3_0_,
+        user0_.name as name4_0_,
+        user0_.updated_at as updated_5_0_ 
+    from
+        user user0_ 
+    where
+        user0_.id in (
+            ? , ? , ?
+        )
+Hibernate: 
+    delete 
+    from
+        user 
+    where
+        id=?
+Hibernate: 
+    delete 
+    from
+        user 
+    where
+        id=?
+Hibernate: 
+    delete 
+    from
+        user 
+    where
+        id=?
+```
+###### void deleteInBatch(Iterable<T> entities);
+- 특정 Entity들을 삭제
+- or절을 이용해서 Delete Query 한번만 수행
+```java
+@Test
+@Transactional
+void crud() {
+    userRepository.deleteInBatch(userRepository.findAllById(Arrays.asList(1L, 3L, 5L)));
+    userRepository.findAll().forEach(System.out::println);
+}
+```
+```sql
+Hibernate: 
+    select
+        user0_.id as id1_0_,
+        user0_.created_at as created_2_0_,
+        user0_.email as email3_0_,
+        user0_.name as name4_0_,
+        user0_.updated_at as updated_5_0_ 
+    from
+        user user0_ 
+    where
+        user0_.id in (
+            ? , ? , ?
+        )
+Hibernate: 
+    delete 
+    from
+        user 
+    where
+        id=? 
+        or id=? 
+        or id=?
+```
+###### void deleteAllInBatch();
+- 테이블의 모든 레코드 삭제
+- 하나의 Delete Query만 수행
+```java
+@Test
+@Transactional
+void crud() {
+    userRepository.deleteAllInBatch();
+    userRepository.findAll().forEach(System.out::println);
+}
+```
+```sql
+Hibernate: 
+    delete 
+    from
+        user
+```
+###### Page\<T\> findAll(Pageable pageable);
+- 페이지 단위로 데이터를 가져오기
+- Pageable는 "PageRequest.of(1, 2)"를 이용
+  - pagesize가 2인 1 page를 가져와라.
+  - page number는 zero-based number임
+```java
+@Test
+@Transactional
+void crud() {
+    // page size가 2인 page 1의 데이터들을 가져와라.(page 0부터 시작)
+    Page<User> users = userRepository.findAll(PageRequest.of(1, 2));
+    // 전체 페이지와 현재 페이지 정보, 인스턴스정보
+    System.out.println("page: " + users);
+    // 전체 레코드 개수
+    System.out.println("totalElements: " + users.getTotalElements());
+    // 전체 페이지 수
+    System.out.println("totalPages: " + users.getTotalPages());
+    // 해당 페이지의 Element 개수
+    System.out.println("numberOfElements: " + users.getNumberOfElements());
+    // Sort(ASC, DESC) 적용 여부
+    System.out.println("sort: " + users.getSort());
+    // 페이지당 사이즈
+    System.out.println("size: " + users.getSize());
+    // 해당 페이지의 레코드들을 출력
+    users.getContent().forEach(System.out::println);
+}
+```
+```sql
+Hibernate: 
+    select
+        user0_.id as id1_0_,
+        user0_.created_at as created_2_0_,
+        user0_.email as email3_0_,
+        user0_.name as name4_0_,
+        user0_.updated_at as updated_5_0_ 
+    from
+        user user0_ limit ? offset ?
+Hibernate: 
+    select
+        count(user0_.id) as col_0_0_ 
+    from
+        user user0_
+page: Page 2 of 3 containing com.gusami.jpa.bookmanager.domain.User instances
+totalElements: 5
+totalPages: 3
+numberOfElements: 2
+sort: UNSORTED
+size: 2
+User(id=3, name=sophia, email=sophia@slowcampus.com, createdAt=2021-10-14T23:00:43.443965, updatedAt=2021-10-14T23:00:43.443965)
+User(id=4, name=james, email=james@slowcampus.com, createdAt=2021-10-14T23:00:43.443965, updatedAt=2021-10-14T23:00:43.443965)        
+```
+#### Query by Example(QBE)
+###### List\<S\> findAll(Example\<S\> example);
+- Entity를 Example로 만들고, matcher를 추가하여 필요한 Query를 생성하는 방법
+```java
+@Test
+@Transactional
+void crud() {
+    ExampleMatcher matcher = ExampleMatcher.matching()
+            .withIgnorePaths("name")
+            .withMatcher("email", endsWith());
+
+    // 이름은 무시하고 매칭안하고, 이메일은 "fastcampus.com"으로 종료되는 User
+    Example<User> example = Example.of(new User("ma", "fastcampus.com"), matcher);
+    // matching 되는 결과를 받아옴
+    userRepository.findAll(example).forEach(System.out::println);
+}
+```sql
+Hibernate: 
+    select
+        user0_.id as id1_0_,
+        user0_.created_at as created_2_0_,
+        user0_.email as email3_0_,
+        user0_.name as name4_0_,
+        user0_.updated_at as updated_5_0_ 
+    from
+        user user0_ 
+    where
+        user0_.email like ? escape ?
+User(id=1, name=martin, email=martin@fastcampus.com, createdAt=2021-10-14T23:11:17.352710, updatedAt=2021-10-14T23:11:17.352710)
+User(id=2, name=dennis, email=dennis@fastcampus.com, createdAt=2021-10-14T23:11:17.352710, updatedAt=2021-10-14T23:11:17.352710)
+```
+- "withIgnorePaths"을 없애거나, matcher를 제거하면, exact matching 형태로 동작
+  - "withIgnorePaths"을 없앤 경우
+```java
+@Test
+    @Transactional
+    void crud() {
+        ExampleMatcher matcher = ExampleMatcher.matching()
+                .withMatcher("email", endsWith());
+
+        Example<User> example = Example.of(new User("martin", "fastcampus.com"), matcher);
+
+        userRepository.findAll(example).forEach(System.out::println);
+    }
+```
+```sql
+Hibernate: 
+    select
+        user0_.id as id1_0_,
+        user0_.created_at as created_2_0_,
+        user0_.email as email3_0_,
+        user0_.name as name4_0_,
+        user0_.updated_at as updated_5_0_ 
+    from
+        user user0_ 
+    where
+        user0_.name=? 
+        and (
+            user0_.email like ? escape ?
+        )
+User(id=1, name=martin, email=martin@fastcampus.com, createdAt=2021-10-14T23:18:18.694797, updatedAt=2021-10-14T23:18:18.694797)
+```
+  - matcher를 제거한 경우
+```java
+@Test
+@Transactional
+void crud() {
+    Example<User> example = Example.of(new User("martin", "martin@fastcampus.com"));
+        userRepository.findAll(example).forEach(System.out::println);
+}
+```
+```sql
+Hibernate: 
+    select
+        user0_.id as id1_0_,
+        user0_.created_at as created_2_0_,
+        user0_.email as email3_0_,
+        user0_.name as name4_0_,
+        user0_.updated_at as updated_5_0_ 
+    from
+        user user0_ 
+    where
+        user0_.name=? 
+        and user0_.email=?
+User(id=1, name=martin, email=martin@fastcampus.com, createdAt=2021-10-14T23:20:56.870036, updatedAt=2021-10-14T23:20:56.870036)
+```
+- 이메일에 특정 문자열을 포함하는 경우('%slow%')
+```java
+@Test
+@Transactional
+void crud() {
+    User user = new User();
+    user.setEmail("slow");
+    ExampleMatcher matcher = ExampleMatcher.matching().withMatcher("email", contains());
+    Example<User> example = Example.of(user, matcher);
+    userRepository.findAll(example).forEach(System.out::println);
+}
+```
+```sql
+Hibernate: 
+    select
+        user0_.id as id1_0_,
+        user0_.created_at as created_2_0_,
+        user0_.email as email3_0_,
+        user0_.name as name4_0_,
+        user0_.updated_at as updated_5_0_ 
+    from
+        user user0_ 
+    where
+        user0_.email like ? escape ?
+User(id=3, name=sophia, email=sophia@slowcampus.com, createdAt=2021-10-14T23:23:48.638727, updatedAt=2021-10-14T23:23:48.638727)
+User(id=4, name=james, email=james@slowcampus.com, createdAt=2021-10-14T23:23:48.638727, updatedAt=2021-10-14T23:23:48.638727)
+```        
