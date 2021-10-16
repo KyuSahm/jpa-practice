@@ -25,10 +25,13 @@ class UserRepositoryTest {
     @Test
     @Transactional
     void crud() {
-        User user = new User();
-        user.setEmail("slow");
-        ExampleMatcher matcher = ExampleMatcher.matching().withMatcher("email", contains());
-        Example<User> example = Example.of(user, matcher);
-        userRepository.findAll(example).forEach(System.out::println);
+        //userRepository.save(new User("david", "david@fastcampus.com"));
+
+        User user = userRepository.findById(1L).orElseThrow();
+        user.setEmail("martin-update@fastcampus.com");
+        userRepository.save(user);
+
+        List<User> users = userRepository.findAll();
+        users.forEach(System.out::println);
     }
 }

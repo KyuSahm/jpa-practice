@@ -129,6 +129,8 @@
   - 삭제: Ctrl + y
 - 메소드의 파라메터 정보 보기: Ctrl + p
   - 사용하고 있는 메소드 명에서 키를 누르면, 정의된 메소드의 파라메터 정보를 볼 수 있음.  
+- 메소드의 구현부 찾아가기: Ctrl + Alt + b
+  - 메소드의 실제 구현부를 찾아감.  
 - Quick Definition: Ctrl + Shift + i
   - 사용하고 있는 메소드 명에서 키를 누르면, 정의된 메소드의 선언부를 미리보기 할 수 있음.
 - Quick Document: Ctrl + Q     
@@ -138,6 +140,9 @@
 - 기능(action) 찾기: Ctrl + Shift + A
   - 단축키 정보를 찾을 수 있음
   - Help > Keymap Reference: 단축키 문서를 보여줌.
+- Navigate 키
+  - 뒤로 가기: Ctrl + Alt + left
+  - 앞으로 가기: Ctrl + Alt + right  
 
 #### 단축키 (Short Key) 응용편
 - 테스트 코드 작성: Alt + Enter
@@ -1084,7 +1089,7 @@ Hibernate:
         primary key (id)
     )
 ```
-
+## Repository Interface
 #### Repository Interface 정의
 ```java
 package com.gusami.jpa.bookmanager.repository;
@@ -1242,7 +1247,21 @@ Hibernate:
 ```
 
 ###### S save(S entity);
-- 하나의 레코드 삽입
+- 하나의 레코드 삽입하거나 업데이트 함
+- @Transactional Annotation을 사용
+- 새로운 객체를 만들어서 save하면, 삽입
+  - 아래의 코드처럼 getId()의 존재 여부를 이용해서 insert와 update를 판단
+```java
+@MappedSuperclass
+public abstract class AbstractPersistable<PK extends Serializable> implements Persistable<PK> {
+...
+  @Transient // DATAJPA-622
+	@Override
+	public boolean isNew() {
+		return null == getId();
+	}
+}
+``` 
 ```java
 @SpringBootTest
 class UserRepositoryTest {
@@ -1268,6 +1287,44 @@ Hibernate:
     values
         (?, ?, ?, ?, ?)
 ```
+- 기존의 객체를 수정해서 save하면, 수정
+  - getId()값을 이용해서 where절에 이용
+```java
+@Test
+@Transactional
+void crud() {
+    User user = userRepository.findById(1L).orElseThrow();
+    user.setEmail("martin-update@fastcampus.com");
+    userRepository.save(user);
+
+    List<User> users = userRepository.findAll();
+    users.forEach(System.out::println);
+}
+```
+```sql
+Hibernate: 
+    select
+        user0_.id as id1_0_0_,
+        user0_.created_at as created_2_0_0_,
+        user0_.email as email3_0_0_,
+        user0_.name as name4_0_0_,
+        user0_.updated_at as updated_5_0_0_ 
+    from
+        user user0_ 
+    where
+        user0_.id=?
+Hibernate: 
+    update
+        user 
+    set
+        created_at=?,
+        email=?,
+        name=?,
+        updated_at=? 
+    where
+        id=?
+```
+
 ###### @Deprecated T getOne(ID id);
 - ID를 이용해 하나의 레코드를 조회
 - Proxy를 사용해야 하는데, 세션이 없어서 초기화를 못함
@@ -1797,4 +1854,39 @@ Hibernate:
         user0_.email like ? escape ?
 User(id=3, name=sophia, email=sophia@slowcampus.com, createdAt=2021-10-14T23:23:48.638727, updatedAt=2021-10-14T23:23:48.638727)
 User(id=4, name=james, email=james@slowcampus.com, createdAt=2021-10-14T23:23:48.638727, updatedAt=2021-10-14T23:23:48.638727)
-```        
+```
+#### SimpleJpaRepository 코드 보기
+- Jpa Repository의 구현체를 제공하는 클래스
+- 위에서 언급한 Interface 메소드를 실제 구현
+- JpaRepositoryImplementation\<T, ID\>
+  - JpaRepository\<T, ID\> interface를 상속한 Interface
+```java
+@NoRepositoryBean
+public interface JpaRepositoryImplementation<T, ID> extends JpaRepository<T, ID>, JpaSpecificationExecutor<T> {
+
+	/**
+	 * Configures the {@link CrudMethodMetadata} to be used with the repository.
+	 *
+	 * @param crudMethodMetadata must not be {@literal null}.
+	 */
+	void setRepositoryMethodMetadata(CrudMethodMetadata crudMethodMetadata);
+
+	/**
+	 * Configures the {@link EscapeCharacter} to be used with the repository.
+	 *
+	 * @param escapeCharacter Must not be {@literal null}.
+	 */
+	default void setEscapeCharacter(EscapeCharacter escapeCharacter) {
+
+	}
+}
+```
+- SimpleJpaRepository\<T, ID\>
+  - JpaRepositoryImplementation\<T, ID\>와 상위 interface들을 구현한 클래스
+```java
+@Repository
+@Transactional(readOnly = true)
+public class SimpleJpaRepository<T, ID> implements JpaRepositoryImplementation<T, ID> {
+  ....
+}
+```
