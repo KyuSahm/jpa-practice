@@ -1890,3 +1890,265 @@ public class SimpleJpaRepository<T, ID> implements JpaRepositoryImplementation<T
   ....
 }
 ```
+## Query Method
+- 복잡한 조건(Where절)을 가지는 쿼리를 생성
+- Entity의 Repository interface에 Naming 베이스로 메소드를 선언하면, 자동으로 쿼리 생성
+- Query return types
+  - void: Denotes no return value
+  - Primitives: Java primitives
+  - Wrapper types: Java wrapper types
+  - T: A unique entity. Expects the query method to return one result at most. If no results is found, null is returned. More than one result triggers an IncorrectResultSizeDataAccessException
+  - Iterator\<T\>: An Iterator
+  - Collection\<T\>: A Collection
+  - List\<T\>: A List
+  - Optional\<T\>: A Java 8 or Guava ``Optional``. Expects the query method to return one result at most. If no result is found,  ``Option.empty()`` or ``Optional.absent()`` is returned. More than one result triggers an IncorrectResultSizeDataAccessException
+  - Option\<T\>: Either a Scalar or Vavr ``Option`` type. Semantically the same behavior as Java 8's ``Optional``, described earlier
+  - Stream\<T\>: A Java 8 Stream
+  - Streamable\<T\>: A convenience extension of ``Iterable`` that directly exposes methods to stream, map and filter results, concatenate them etc
+  - Types that implement ``Streamable`` and take a ``Streamable`` constructor or factory method argument: Types that expose a constructor or ``..of(...)/...valueOf(...)`` factory method taking a ``Streamable`` as argument. See Returning Custom Streamable Wrapper Types for details
+  - Vavr Seq, ``List``, ``Map``, ``Set``: Vavr collection types. See Support for Vavr Collections for details
+  - ``Future<T>``: A ``Future``. Expects a method to be annotated with ``@Async`` and requires Spring's asynchronous method execution capability to be enabled
+  - CompletableFuture\<T\>: A Java 8 ``CompletableFuture``. Expects a method to be annotated with ``@Async`` and requires Spring's asynchronous method execution capability to be enabled
+  - ListenableFuture: A ``org.springFramework.util.concurrent.ListenableFuture``. Expects a method to be annotated with ``@Async`` and requires Spring's asynchronous method execution capability to be enabled
+  - ``Slice<T>``: A sized chunk of data with an indication of whether there is more data available. Requires a ``Pageable`` method parameter
+  - ``Page<T>``: A ``Slice`` with additional information, such as the total number of results. Requires a ``Pageable`` method parameter
+  - ``GeoResult<T>``: A result entry with additional information, such as the distance to aa reference location
+  - ``GeoResults<T>``: A list of ``GeoResult<T>`` with additional information, such as the average distance to a reference location
+  - ``GeoPage<T>``: A ``Page`` with ``GeoResult<T>``, such as the average distance to a reference location
+  - ``Mono<T>``
+  - ``Flux<T>``
+  - ``Single<T>``
+  - ``Maybe<T>``
+  - ``Flowable<T>``
+- Query subject keywords
+  - find...By, read...By, get...By, query...By, search...By, stream...By
+    - find와 By 중간에 위치한 "..." 자리에는 사용자가 가독성을 위해 임의의 값을 사용가능
+    - 사용자가 
+  - exists...By
+  - count...By
+  - delete...By, remove...By
+  - ...First\<number\>..., ...Top\<number\>...
+  - ...Distinct...
+- Query predicate keywords
+  - AND: And
+  - OR: Or
+  - AFTER: After, IsAfter
+  - BEFORE: Before, IsBefore
+  - CONTAINING: Containing, IsContaining, Contains
+  - BETWEEN: Between, IsBetween
+  - ENDING_WITH: EndingWith, IsEndingWith, EndsWith
+  - EXISTS: Exists
+  - FALSE: False, IsFalse
+  - GREATER_THAN: GreaterThan, IsGreaterThan
+  - GREATER_THAN_EQUALS: GreaterThanEqual, IsGreaterThanEqual
+  - IN: In, IsIn
+  - IS: Is, Equals, (or no keyword)
+  - IS_EMPTY: IsEmpty, Empty
+  - IS_NOT_EMPTY: IsNotEmpty, NotEmpty
+  - Is_NOT_NULL: NotNull, IsNotNull
+#### findByXXX()
+- where절에 특정 칼럼 조건을 추가
+- 사용자가 정의한 UserRepository에 인터페이스를 추가
+- 리턴 타입도 결과 레코드들의 특성에 맞게 정의 가능
+  - Query return types을 참조
+
+```java
+public interface UserRepository extends JpaRepository<User, Long> {
+    List<User> findByName(String name);
+    //Set<User> findByName(String name);
+    //Optional<User> findByName(String name);
+}
+```
+```java
+@Test
+    void select() {
+        userRepository.findByName("martin").forEach(System.out::println);
+    }
+```
+```sql
+Hibernate: 
+    select
+        user0_.id as id1_0_,
+        user0_.created_at as created_2_0_,
+        user0_.email as email3_0_,
+        user0_.name as name4_0_,
+        user0_.updated_at as updated_5_0_ 
+    from
+        user user0_ 
+    where
+        user0_.name=?
+User(id=1, name=martin, email=martin@fastcampus.com, createdAt=2021-10-17T19:03:33.325081, updatedAt=2021-10-17T19:03:33.325081)
+User(id=5, name=martin, email=martin@another.com, createdAt=2021-10-17T19:03:33.331084, updatedAt=2021-10-17T19:03:33.331084
+```
+- findByXXX, getByXXX, readByXXX, queryByXXX, searchByXXX, streamByXXX, findXXXByXXX
+  - 동일한 결과를 얻음
+  - 가독성을 위해 원하는 API를 선택해서 사용
+
+```java
+public interface UserRepository extends JpaRepository<User, Long> {
+    User findByEmail(String email);
+    User getByEmail(String email);
+    User readByEmail(String email);
+    User queryByEmail(String email);
+    User searchByEmail(String email);
+    User streamByEmail(String email);
+    User findUserByEmail(String email);
+    User findSomethingByEmail(String email);
+}
+```
+```java
+@Test
+    void select() {
+        System.out.println("findByEmail" + userRepository.findByEmail("martin@fastcampus.com"));
+        System.out.println("getByEmail" + userRepository.getByEmail("martin@fastcampus.com"));
+        System.out.println("readByEmail" + userRepository.readByEmail("martin@fastcampus.com"));
+        System.out.println("queryByEmail" + userRepository.queryByEmail("martin@fastcampus.com"));
+        System.out.println("searchByEmail" + userRepository.searchByEmail("martin@fastcampus.com"));
+        System.out.println("streamByEmail" + userRepository.streamByEmail("martin@fastcampus.com"));
+        System.out.println("findUserByEmail" + userRepository.findUserByEmail("martin@fastcampus.com"));
+        System.out.println("findSomethingByEmail" + userRepository.findSomethingByEmail("martin@fastcampus.com"));
+    }
+```
+```sql
+Hibernate: 
+    select
+        user0_.id as id1_0_,
+        user0_.created_at as created_2_0_,
+        user0_.email as email3_0_,
+        user0_.name as name4_0_,
+        user0_.updated_at as updated_5_0_ 
+    from
+        user user0_ 
+    where
+        user0_.email=?
+findByEmailUser(id=1, name=martin, email=martin@fastcampus.com, createdAt=2021-10-17T20:19:31.587805, updatedAt=2021-10-17T20:19:31.587805)
+Hibernate: 
+    select
+        user0_.id as id1_0_,
+        user0_.created_at as created_2_0_,
+        user0_.email as email3_0_,
+        user0_.name as name4_0_,
+        user0_.updated_at as updated_5_0_ 
+    from
+        user user0_ 
+    where
+        user0_.email=?
+getByEmailUser(id=1, name=martin, email=martin@fastcampus.com, createdAt=2021-10-17T20:19:31.587805, updatedAt=2021-10-17T20:19:31.587805)
+Hibernate: 
+    select
+        user0_.id as id1_0_,
+        user0_.created_at as created_2_0_,
+        user0_.email as email3_0_,
+        user0_.name as name4_0_,
+        user0_.updated_at as updated_5_0_ 
+    from
+        user user0_ 
+    where
+        user0_.email=?
+readByEmailUser(id=1, name=martin, email=martin@fastcampus.com, createdAt=2021-10-17T20:19:31.587805, updatedAt=2021-10-17T20:19:31.587805)
+Hibernate: 
+    select
+        user0_.id as id1_0_,
+        user0_.created_at as created_2_0_,
+        user0_.email as email3_0_,
+        user0_.name as name4_0_,
+        user0_.updated_at as updated_5_0_ 
+    from
+        user user0_ 
+    where
+        user0_.email=?
+queryByEmailUser(id=1, name=martin, email=martin@fastcampus.com, createdAt=2021-10-17T20:19:31.587805, updatedAt=2021-10-17T20:19:31.587805)
+Hibernate: 
+    select
+        user0_.id as id1_0_,
+        user0_.created_at as created_2_0_,
+        user0_.email as email3_0_,
+        user0_.name as name4_0_,
+        user0_.updated_at as updated_5_0_ 
+    from
+        user user0_ 
+    where
+        user0_.email=?
+searchByEmailUser(id=1, name=martin, email=martin@fastcampus.com, createdAt=2021-10-17T20:19:31.587805, updatedAt=2021-10-17T20:19:31.587805)
+Hibernate: 
+    select
+        user0_.id as id1_0_,
+        user0_.created_at as created_2_0_,
+        user0_.email as email3_0_,
+        user0_.name as name4_0_,
+        user0_.updated_at as updated_5_0_ 
+    from
+        user user0_ 
+    where
+        user0_.email=?
+streamByEmailUser(id=1, name=martin, email=martin@fastcampus.com, createdAt=2021-10-17T20:19:31.587805, updatedAt=2021-10-17T20:19:31.587805)
+Hibernate: 
+    select
+        user0_.id as id1_0_,
+        user0_.created_at as created_2_0_,
+        user0_.email as email3_0_,
+        user0_.name as name4_0_,
+        user0_.updated_at as updated_5_0_ 
+    from
+        user user0_ 
+    where
+        user0_.email=?
+findUserByEmailUser(id=1, name=martin, email=martin@fastcampus.com, createdAt=2021-10-17T20:19:31.587805, updatedAt=2021-10-17T20:19:31.587805)
+Hibernate: 
+    select
+        user0_.id as id1_0_,
+        user0_.created_at as created_2_0_,
+        user0_.email as email3_0_,
+        user0_.name as name4_0_,
+        user0_.updated_at as updated_5_0_ 
+    from
+        user user0_ 
+    where
+        user0_.email=?
+findSomethingByEmailUser(id=1, name=martin, email=martin@fastcampus.com, createdAt=2021-10-17T20:24:24.382276, updatedAt=2021-10-17T20:24:24.382276)
+```
+#### ``...First<number>...``, ``...Top<number>...``
+- 상위의 지정된 개수의 레코드만 추출
+- First와 Top의 차이가 없음
+```java
+public interface UserRepository extends JpaRepository<User, Long> {
+    List<User> findFirst2ByName(String name);
+    List<User> findTop2ByName(String name);
+}
+```
+```java
+@Test
+void select() {
+    System.out.println("findFirst2ByName" + userRepository.findFirst2ByName("martin"));
+    System.out.println("findTop2ByName" + userRepository.findTop2ByName("martin"));
+}
+```
+```sql
+Hibernate: 
+    select
+        user0_.id as id1_0_,
+        user0_.created_at as created_2_0_,
+        user0_.email as email3_0_,
+        user0_.name as name4_0_,
+        user0_.updated_at as updated_5_0_ 
+    from
+        user user0_ 
+    where
+        user0_.name=? limit ?
+findFirst2ByName[User(id=1, name=martin, email=martin@fastcampus.com, createdAt=2021-10-17T20:40:42.929346, updatedAt=2021-10-17T20:40:42.929346), User(id=5, name=martin, email=martin@another.com, createdAt=2021-10-17T20:40:42.935346, updatedAt=2021-10-17T20:40:42.935346)]
+Hibernate: 
+    select
+        user0_.id as id1_0_,
+        user0_.created_at as created_2_0_,
+        user0_.email as email3_0_,
+        user0_.name as name4_0_,
+        user0_.updated_at as updated_5_0_ 
+    from
+        user user0_ 
+    where
+        user0_.name=? limit ?
+findTop2ByName[User(id=1, name=martin, email=martin@fastcampus.com, createdAt=2021-10-17T20:40:42.929346, updatedAt=2021-10-17T20:40:42.929346), User(id=5, name=martin, email=martin@another.com, createdAt=2021-10-17T20:40:42.935346, updatedAt=2021-10-17T20:40:42.935346)]
+```
+- Last란 키워드는 존재하지 않음
+  - "List<User> findLast1ByName(String name);"은 findByName과 동일
+  - Last record를 가져오고 싶으면, order by를 이용해서 역순 정렬 후, First 또는 Top을 사용
