@@ -1946,7 +1946,20 @@ public class SimpleJpaRepository<T, ID> implements JpaRepositoryImplementation<T
   - IS_EMPTY: IsEmpty, Empty
   - IS_NOT_EMPTY: IsNotEmpty, NotEmpty
   - Is_NOT_NULL: NotNull, IsNotNull
-#### findByXXX()
+  - IS_NULL: Null, IsNull
+  - LESS_THAN: LessThan, IsLessThan
+  - LESS_THAN_EQUAL: LessThanaEqual, IsLessThanEqual
+  - LIKE: Like, IsLike
+  - NEAR: Near, IsNear
+  - NOT: Not, IsNot
+  - NOT_IN: NotIn, IsNotIn
+  - NOT_LIKE: NotLike, IsNotLike
+  - REGEX: Regex, MatchesRegex, Matches
+  - STARTING_WITH: StartingWith, IsStartingWith, StartsWith
+  - TRUE: True, IsTrue
+  - WITHIN: Within, IsWithin
+#### Query subject keywords   
+###### findByXXX()
 - where절에 특정 칼럼 조건을 추가
 - 사용자가 정의한 UserRepository에 인터페이스를 추가
 - 리턴 타입도 결과 레코드들의 특성에 맞게 정의 가능
@@ -2107,7 +2120,7 @@ Hibernate:
         user0_.email=?
 findSomethingByEmailUser(id=1, name=martin, email=martin@fastcampus.com, createdAt=2021-10-17T20:24:24.382276, updatedAt=2021-10-17T20:24:24.382276)
 ```
-#### ``...First<number>...``, ``...Top<number>...``
+###### ``...First<number>...``, ``...Top<number>...``
 - 상위의 지정된 개수의 레코드만 추출
 - First와 Top의 차이가 없음
 ```java
@@ -2152,3 +2165,228 @@ findTop2ByName[User(id=1, name=martin, email=martin@fastcampus.com, createdAt=20
 - Last란 키워드는 존재하지 않음
   - "List<User> findLast1ByName(String name);"은 findByName과 동일
   - Last record를 가져오고 싶으면, order by를 이용해서 역순 정렬 후, First 또는 Top을 사용
+
+#### Query predicate keywords
+###### AND
+- Where절에 and 조건을 삽입
+```java
+public interface UserRepository extends JpaRepository<User, Long> {
+    List<User> findByEmailAndName(String email, String name);
+}
+```
+```java
+@Test
+void select() {
+    System.out.println("findByEmailAndName" + userRepository.findByEmailAndName("martin@fastcampus.com", "martin"));
+}
+```
+```sql
+Hibernate: 
+    select
+        user0_.id as id1_0_,
+        user0_.created_at as created_2_0_,
+        user0_.email as email3_0_,
+        user0_.name as name4_0_,
+        user0_.updated_at as updated_5_0_ 
+    from
+        user user0_ 
+    where
+        user0_.email=? 
+        and user0_.name=?
+findByEmailAandName[User(id=1, name=martin, email=martin@fastcampus.com, createdAt=2021-10-24T16:42:52.255971, updatedAt=2021-10-24T16:42:52.255971)]
+```
+###### Or
+- Where절에 or 조건을 삽입
+```java
+public interface UserRepository extends JpaRepository<User, Long> {
+    List<User> findByEmailOrName(String email, String name);
+}
+```
+```java
+@Test
+void select() {
+    System.out.println("findByEmailOrName" + userRepository.findByEmailOrName("martin@fastcampus.com","dennis"));
+}
+```
+```sql
+Hibernate: 
+    select
+        user0_.id as id1_0_,
+        user0_.created_at as created_2_0_,
+        user0_.email as email3_0_,
+        user0_.name as name4_0_,
+        user0_.updated_at as updated_5_0_ 
+    from
+        user user0_ 
+    where
+        user0_.email=? 
+        or user0_.name=?
+findByEmailOrName[User(id=1, name=martin, email=martin@fastcampus.com, createdAt=2021-10-24T17:09:50.258286, updatedAt=2021-10-24T17:09:50.258286), User(id=2, name=dennis, email=dennis@fastcampus.com, createdAt=2021-10-24T17:09:50.264287, updatedAt=2021-10-24T17:09:50.264287)]
+```
+###### Before, After
+- Where절에 시간에 대한 조건을 삽입
+- 특정 시간 이후의 해당하는 레코드를 추출
+```java
+public interface UserRepository extends JpaRepository<User, Long> {
+    List<User> findByCreatedAtAfter(LocalDateTime yesterday);
+}
+```
+```java
+@Test
+void select() {
+    System.out.println("findByCreatedAtAfter" + userRepository.findByCreatedAtAfter(LocalDateTime.now().minusDays(1)));
+}
+```
+```sql
+Hibernate: 
+    select
+        user0_.id as id1_0_,
+        user0_.created_at as created_2_0_,
+        user0_.email as email3_0_,
+        user0_.name as name4_0_,
+        user0_.updated_at as updated_5_0_ 
+    from
+        user user0_ 
+    where
+        user0_.created_at>?
+findByCreatedAtAfter[User(id=1, name=martin, email=martin@fastcampus.com, createdAt=2021-10-24T17:28:43.991237, updatedAt=2021-10-24T17:28:43.991237), User(id=2, name=dennis, email=dennis@fastcampus.com, createdAt=2021-10-24T17:28:43.996241, updatedAt=2021-10-24T17:28:43.996241), User(id=3, name=sophia, email=sophia@slowcampus.com, createdAt=2021-10-24T17:28:43.997240, updatedAt=2021-10-24T17:28:43.997240), User(id=4, name=james, email=james@slowcampus.com, createdAt=2021-10-24T17:28:43.997240, updatedAt=2021-10-24T17:28:43.997240), User(id=5, name=martin, email=martin@another.com, createdAt=2021-10-24T17:28:43.997240, updatedAt=2021-10-24T17:28:43.997240)]
+```
+- 날짜와 시간이 아닌 칼럼에도 사용 가능
+  - 가독성을 위해서 날짜와 시간 칼럼에만 사용하는 것이 좋음
+```java
+public interface UserRepository extends JpaRepository<User, Long> {
+    List<User> findByIdAfter(Long id);
+}
+```
+```java
+@Test
+void select() {
+    System.out.println("findByIdAfter" + userRepository.findByIdAfter(4L));
+}
+```
+```sql
+Hibernate: 
+    select
+        user0_.id as id1_0_,
+        user0_.created_at as created_2_0_,
+        user0_.email as email3_0_,
+        user0_.name as name4_0_,
+        user0_.updated_at as updated_5_0_ 
+    from
+        user user0_ 
+    where
+        user0_.id>?
+findByIdAfter[User(id=5, name=martin, email=martin@another.com, createdAt=2021-10-24T18:12:15.933276, updatedAt=2021-10-24T18:12:15.933276)]
+```
+###### GreaterThan, GreaterThanEqual, LessThan, LessThanaEqual
+- Where절에 크기 비교 조건을 삽입
+- 숫자와 날짜, 시간 칼럼에 사용 가능
+```java
+public interface UserRepository extends JpaRepository<User, Long> {
+    List<User> findByCreatedAtGreaterThan(LocalDateTime yesterday);
+    List<User> findByCreatedAtGreaterThanEqual(LocalDateTime yesterday);
+}
+```
+```java
+@Test
+void select() {
+    System.out.println("findByCreatedAtGreaterThan" + userRepository.findByCreatedAtGreaterThan(LocalDateTime.now().minusDays(1)));
+    System.out.println("findByCreatedAtGreaterThanEqual" + userRepository.findByCreatedAtGreaterThanEqual(LocalDateTime.now().minusDays(1)));
+}
+```
+```sql
+Hibernate: 
+    select
+        user0_.id as id1_0_,
+        user0_.created_at as created_2_0_,
+        user0_.email as email3_0_,
+        user0_.name as name4_0_,
+        user0_.updated_at as updated_5_0_ 
+    from
+        user user0_ 
+    where
+        user0_.created_at>?
+findByCreatedAtGreaterThan[User(id=1, name=martin, email=martin@fastcampus.com, createdAt=2021-10-24T18:20:37.703211, updatedAt=2021-10-24T18:20:37.703211), User(id=2, name=dennis, email=dennis@fastcampus.com, createdAt=2021-10-24T18:20:37.709203, updatedAt=2021-10-24T18:20:37.709203), User(id=3, name=sophia, email=sophia@slowcampus.com, createdAt=2021-10-24T18:20:37.710203, updatedAt=2021-10-24T18:20:37.710203), User(id=4, name=james, email=james@slowcampus.com, createdAt=2021-10-24T18:20:37.710203, updatedAt=2021-10-24T18:20:37.710203), User(id=5, name=martin, email=martin@another.com, createdAt=2021-10-24T18:20:37.710203, updatedAt=2021-10-24T18:20:37.710203)]
+Hibernate: 
+    select
+        user0_.id as id1_0_,
+        user0_.created_at as created_2_0_,
+        user0_.email as email3_0_,
+        user0_.name as name4_0_,
+        user0_.updated_at as updated_5_0_ 
+    from
+        user user0_ 
+    where
+        user0_.created_at>=?
+findByCreatedAtGreaterThanEqual[User(id=1, name=martin, email=martin@fastcampus.com, createdAt=2021-10-24T18:26:51.268171, updatedAt=2021-10-24T18:26:51.268171), User(id=2, name=dennis, email=dennis@fastcampus.com, createdAt=2021-10-24T18:26:51.273173, updatedAt=2021-10-24T18:26:51.273173), User(id=3, name=sophia, email=sophia@slowcampus.com, createdAt=2021-10-24T18:26:51.273173, updatedAt=2021-10-24T18:26:51.273173), User(id=4, name=james, email=james@slowcampus.com, createdAt=2021-10-24T18:26:51.273173, updatedAt=2021-10-24T18:26:51.273173), User(id=5, name=martin, email=martin@another.com, createdAt=2021-10-24T18:26:51.273173, updatedAt=2021-10-24T18:26:51.273173)]
+```
+###### Between
+- Where절에 Between 조건을 삽입
+- 숫자와 날짜, 시간 칼럼에 사용 가능
+- 양끝의 경계값들을 포함
+```java
+public interface UserRepository extends JpaRepository<User, Long> {
+    List<User> findByCreatedAtBetween(LocalDateTime yesterday, LocalDateTime tommorrow);
+    List<User> findByIdBetween(Long id1, Long id2);
+}
+```
+```java
+@Test
+void select() {
+    System.out.println("findByCreatedAtBetween" + userRepository.findByCreatedAtBetween(LocalDateTime.now().minusDays(1), LocalDateTime.now().plusDays(1)));
+    System.out.println("findByIdBetween" + userRepository.findByIdBetween(1L, 3L));
+}
+```
+```sql
+Hibernate: 
+    select
+        user0_.id as id1_0_,
+        user0_.created_at as created_2_0_,
+        user0_.email as email3_0_,
+        user0_.name as name4_0_,
+        user0_.updated_at as updated_5_0_ 
+    from
+        user user0_ 
+    where
+        user0_.created_at between ? and ?
+findByCreatedAtBetween[User(id=1, name=martin, email=martin@fastcampus.com, createdAt=2021-10-24T18:33:21.698985, updatedAt=2021-10-24T18:33:21.698985), User(id=2, name=dennis, email=dennis@fastcampus.com, createdAt=2021-10-24T18:33:21.702984, updatedAt=2021-10-24T18:33:21.702984), User(id=3, name=sophia, email=sophia@slowcampus.com, createdAt=2021-10-24T18:33:21.703983, updatedAt=2021-10-24T18:33:21.703983), User(id=4, name=james, email=james@slowcampus.com, createdAt=2021-10-24T18:33:21.703983, updatedAt=2021-10-24T18:33:21.703983), User(id=5, name=martin, email=martin@another.com, createdAt=2021-10-24T18:33:21.703983, updatedAt=2021-10-24T18:33:21.703983)]
+Hibernate: 
+    select
+        user0_.id as id1_0_,
+        user0_.created_at as created_2_0_,
+        user0_.email as email3_0_,
+        user0_.name as name4_0_,
+        user0_.updated_at as updated_5_0_ 
+    from
+        user user0_ 
+    where
+        user0_.id between ? and ?
+findByIdBetween[User(id=1, name=martin, email=martin@fastcampus.com, createdAt=2021-10-24T18:33:21.698985, updatedAt=2021-10-24T18:33:21.698985), User(id=2, name=dennis, email=dennis@fastcampus.com, createdAt=2021-10-24T18:33:21.702984, updatedAt=2021-10-24T18:33:21.702984), User(id=3, name=sophia, email=sophia@slowcampus.com, createdAt=2021-10-24T18:33:21.703983, updatedAt=2021-10-24T18:33:21.703983)]
+```
+- findByXXGreaterThanEqualAndXXLessThanEqual()을 이용하여 동일한 결과를 생성 가능
+```java
+public interface UserRepository extends JpaRepository<User, Long> {
+    List<User> findByIdGreaterThanEqualAndIdLessThanEqual(Long id1, Long id2);
+}
+```
+```java
+@Test
+void select() {
+    System.out.println("findByIdGreaterThanEqualAndIdLessThanEqual" + userRepository.findByIdGreaterThanEqualAndIdLessThanEqual(1L, 3L));
+}
+```
+```sql
+Hibernate: 
+    select
+        user0_.id as id1_0_,
+        user0_.created_at as created_2_0_,
+        user0_.email as email3_0_,
+        user0_.name as name4_0_,
+        user0_.updated_at as updated_5_0_ 
+    from
+        user user0_ 
+    where
+        user0_.id>=? 
+        and user0_.id<=?
+findByIdGreaterThanEqualAndIdLessThanEqual[User(id=1, name=martin, email=martin@fastcampus.com, createdAt=2021-10-24T18:38:40.754898, updatedAt=2021-10-24T18:38:40.754898), User(id=2, name=dennis, email=dennis@fastcampus.com, createdAt=2021-10-24T18:38:40.759903, updatedAt=2021-10-24T18:38:40.759903), User(id=3, name=sophia, email=sophia@slowcampus.com, createdAt=2021-10-24T18:38:40.759903, updatedAt=2021-10-24T18:38:40.759903)]
+```
