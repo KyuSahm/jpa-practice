@@ -2390,3 +2390,306 @@ Hibernate:
         and user0_.id<=?
 findByIdGreaterThanEqualAndIdLessThanEqual[User(id=1, name=martin, email=martin@fastcampus.com, createdAt=2021-10-24T18:38:40.754898, updatedAt=2021-10-24T18:38:40.754898), User(id=2, name=dennis, email=dennis@fastcampus.com, createdAt=2021-10-24T18:38:40.759903, updatedAt=2021-10-24T18:38:40.759903), User(id=3, name=sophia, email=sophia@slowcampus.com, createdAt=2021-10-24T18:38:40.759903, updatedAt=2021-10-24T18:38:40.759903)]
 ```
+###### IsNotNull, IsNull
+- 칼럼의 Null 체크 기능
+```java
+public interface UserRepository extends JpaRepository<User, Long> {
+    List<User> findByIdIsNotNull();
+}
+```
+```java
+@Test
+void select() {
+    System.out.println("findByIdIsNotNull" + userRepository.findByIdIsNotNull());
+}
+```
+```sql
+Hibernate: 
+    select
+        user0_.id as id1_0_,
+        user0_.created_at as created_2_0_,
+        user0_.email as email3_0_,
+        user0_.name as name4_0_,
+        user0_.updated_at as updated_5_0_ 
+    from
+        user user0_ 
+    where
+        user0_.id is not null
+findByIdIsNotNull[User(id=1, name=martin, email=martin@fastcampus.com, createdAt=2021-10-24T19:41:18.854301, updatedAt=2021-10-24T19:41:18.854301), User(id=2, name=dennis, email=dennis@fastcampus.com, createdAt=2021-10-24T19:41:18.860304, updatedAt=2021-10-24T19:41:18.860304), User(id=3, name=sophia, email=sophia@slowcampus.com, createdAt=2021-10-24T19:41:18.861303, updatedAt=2021-10-24T19:41:18.861303), User(id=4, name=james, email=james@slowcampus.com, createdAt=2021-10-24T19:41:18.861303, updatedAt=2021-10-24T19:41:18.861303), User(id=5, name=martin, email=martin@another.com, createdAt=2021-10-24T19:41:18.861303, updatedAt=2021-10-24T19:41:18.861303)]
+```
+###### IsNotEmpty, IsEmpty
+- Collection properties에만 사용가능 (1:N관계에서 사용)
+- where절에 exist와 inner select query를 사용
+```java
+import javax.persistence.Entity;
+import javax.persistence.Id;
+
+@Entity
+public class Address {
+    @Id
+    private Long id;
+}
+
+@NoArgsConstructor
+@AllArgsConstructor
+@RequiredArgsConstructor
+@Data
+@Builder
+@Entity
+public class User {
+    @Id
+    @GeneratedValue
+    private Long id;
+    @NonNull
+    private String name;
+    @NonNull
+    private String email;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+
+    @OneToMany(fetch = FetchType.EAGER)
+    private List<Address> address;
+}
+```
+```java
+public interface UserRepository extends JpaRepository<User, Long> {
+    List<User> findByAddressIsNotEmpty();
+}
+```
+```java
+@Test
+void select() {
+    System.out.println("findByAddressIsNotEmpty" + userRepository.findByAddressIsNotEmpty());
+}
+```
+```sql
+Hibernate: 
+    
+    create table address (
+       id bigint not null,
+        primary key (id)
+    )
+Hibernate: 
+    
+    create table user (
+       id bigint not null,
+        created_at timestamp,
+        email varchar(255),
+        name varchar(255),
+        updated_at timestamp,
+        primary key (id)
+    )
+Hibernate: 
+    
+    create table user_address (
+       user_id bigint not null,
+        address_id bigint not null
+    )
+
+Hibernate: 
+    select
+        user0_.id as id1_1_,
+        user0_.created_at as created_2_1_,
+        user0_.email as email3_1_,
+        user0_.name as name4_1_,
+        user0_.updated_at as updated_5_1_ 
+    from
+        user user0_ 
+    where
+        exists (
+            select
+                address2_.id 
+            from
+                user_address address1_,
+                address address2_ 
+            where
+                user0_.id=address1_.user_id 
+                and address1_.address_id=address2_.id
+        )
+findByAddressIsNotEmpty[]
+```
+###### In, NotIn
+- where절의 In절 생성
+- Or 조건을 여러번 사용한 것과 동일
+- In절을 위해서 사용하는 List의 데이터 개수가 너무 많으면, 성능에 악영향
+```java
+public interface UserRepository extends JpaRepository<User, Long> {
+    List<User> findByNameIn(List<String> names);
+}
+```
+```java
+@Test
+void select() {
+    System.out.println("findByNameIn" + userRepository.findByNameIn(Arrays.asList("martin", "dennis")));
+}
+```
+```sql
+Hibernate: 
+    select
+        user0_.id as id1_1_,
+        user0_.created_at as created_2_1_,
+        user0_.email as email3_1_,
+        user0_.name as name4_1_,
+        user0_.updated_at as updated_5_1_ 
+    from
+        user user0_ 
+    where
+        user0_.name in (
+            ? , ?
+        )
+findByNameIn[User(id=1, name=martin, email=martin@fastcampus.com, createdAt=2021-10-24T20:10:55.684966, updatedAt=2021-10-24T20:10:55.684966), User(id=2, name=dennis, email=dennis@fastcampus.com, createdAt=2021-10-24T20:10:55.689965, updatedAt=2021-10-24T20:10:55.689965), User(id=5, name=martin, email=martin@another.com, createdAt=2021-10-24T20:10:55.690966, updatedAt=2021-10-24T20:10:55.690966)]
+```
+###### StartingWith, EndingWith, Contains
+- where절의 like절 생성
+- 문자열의 매칭 레코드를 검색
+- ``findByXXXLike(String XXX)``메소드를 한번 더 Wrapping한 메소드
+```java
+public interface UserRepository extends JpaRepository<User, Long> {
+    List<User> findByNameStartingWith(String name);
+    List<User> findByNameEndingWith(String name);
+    List<User> findByNameContains(String name);
+    List<User> findByNameLike(String name);
+}
+```
+```java
+@Test
+void select() {
+    System.out.println("findByNameStartingWith" + userRepository.findByNameStartingWith("mar"));
+    System.out.println("findByNameEndingWith" + userRepository.findByNameEndingWith("tin"));
+    System.out.println("findByNameContains" + userRepository.findByNameContains("art"));
+    System.out.println("findByNameLike" + userRepository.findByNameLike("mar%"));
+    System.out.println("findByNameLike" + userRepository.findByNameLike("%tin"));
+    System.out.println("findByNameLike" + userRepository.findByNameLike("%art%"));
+}
+```
+```sql
+Hibernate: 
+    select
+        user0_.id as id1_1_,
+        user0_.created_at as created_2_1_,
+        user0_.email as email3_1_,
+        user0_.name as name4_1_,
+        user0_.updated_at as updated_5_1_ 
+    from
+        user user0_ 
+    where
+        user0_.name like ? escape ?
+findByNameStartingWith[User(id=1, name=martin, email=martin@fastcampus.com, createdAt=2021-10-24T20:18:34.199183, updatedAt=2021-10-24T20:18:34.199183), User(id=5, name=martin, email=martin@another.com, createdAt=2021-10-24T20:18:34.206184, updatedAt=2021-10-24T20:18:34.206184)]
+Hibernate: 
+    select
+        user0_.id as id1_1_,
+        user0_.created_at as created_2_1_,
+        user0_.email as email3_1_,
+        user0_.name as name4_1_,
+        user0_.updated_at as updated_5_1_ 
+    from
+        user user0_ 
+    where
+        user0_.name like ? escape ?
+findByNameEndingWith[User(id=1, name=martin, email=martin@fastcampus.com, createdAt=2021-10-24T20:18:34.199183, updatedAt=2021-10-24T20:18:34.199183), User(id=5, name=martin, email=martin@another.com, createdAt=2021-10-24T20:18:34.206184, updatedAt=2021-10-24T20:18:34.206184)]
+Hibernate: 
+    select
+        user0_.id as id1_1_,
+        user0_.created_at as created_2_1_,
+        user0_.email as email3_1_,
+        user0_.name as name4_1_,
+        user0_.updated_at as updated_5_1_ 
+    from
+        user user0_ 
+    where
+        user0_.name like ? escape ?
+findByNameContains[User(id=1, name=martin, email=martin@fastcampus.com, createdAt=2021-10-24T20:18:34.199183, updatedAt=2021-10-24T20:18:34.199183), User(id=5, name=martin, email=martin@another.com, createdAt=2021-10-24T20:18:34.206184, updatedAt=2021-10-24T20:18:34.206184)]
+Hibernate: 
+    select
+        user0_.id as id1_1_,
+        user0_.created_at as created_2_1_,
+        user0_.email as email3_1_,
+        user0_.name as name4_1_,
+        user0_.updated_at as updated_5_1_ 
+    from
+        user user0_ 
+    where
+        user0_.name like ? escape ?
+findByNameLike[User(id=1, name=martin, email=martin@fastcampus.com, createdAt=2021-10-24T20:23:30.263708, updatedAt=2021-10-24T20:23:30.263708), User(id=5, name=martin, email=martin@another.com, createdAt=2021-10-24T20:23:30.270711, updatedAt=2021-10-24T20:23:30.270711)]
+Hibernate: 
+    select
+        user0_.id as id1_1_,
+        user0_.created_at as created_2_1_,
+        user0_.email as email3_1_,
+        user0_.name as name4_1_,
+        user0_.updated_at as updated_5_1_ 
+    from
+        user user0_ 
+    where
+        user0_.name like ? escape ?
+findByNameLike[User(id=1, name=martin, email=martin@fastcampus.com, createdAt=2021-10-24T20:23:30.263708, updatedAt=2021-10-24T20:23:30.263708), User(id=5, name=martin, email=martin@another.com, createdAt=2021-10-24T20:23:30.270711, updatedAt=2021-10-24T20:23:30.270711)]
+Hibernate: 
+    select
+        user0_.id as id1_1_,
+        user0_.created_at as created_2_1_,
+        user0_.email as email3_1_,
+        user0_.name as name4_1_,
+        user0_.updated_at as updated_5_1_ 
+    from
+        user user0_ 
+    where
+        user0_.name like ? escape ?
+findByNameLike[User(id=1, name=martin, email=martin@fastcampus.com, createdAt=2021-10-24T20:23:30.263708, updatedAt=2021-10-24T20:23:30.263708), User(id=5, name=martin, email=martin@another.com, createdAt=2021-10-24T20:23:30.270711, updatedAt=2021-10-24T20:23:30.270711)]
+```
+###### Is
+- ``Is, Equals, (or no keyword)`` 동일 
+- where 절에 ``=`` 을 생성
+- 일치하는 레코드를 가져옴
+```java
+public interface UserRepository extends JpaRepository<User, Long> {
+    List<User> findByNameIs(String name);
+    List<User> findByNameEquals(String name);
+    List<User> findByName(String name);
+}
+```
+```java
+@Test
+void select() {
+    System.out.println("findByNameIs" + userRepository.findByNameIs("martin"));
+    System.out.println("findByNameEquals" + userRepository.findByNameEquals("martin"));
+    System.out.println("findByName" + userRepository.findByName("martin"));
+}
+```
+```sql
+Hibernate: 
+    select
+        user0_.id as id1_1_,
+        user0_.created_at as created_2_1_,
+        user0_.email as email3_1_,
+        user0_.name as name4_1_,
+        user0_.updated_at as updated_5_1_ 
+    from
+        user user0_ 
+    where
+        user0_.name=?
+findByNameIs[User(id=1, name=martin, email=martin@fastcampus.com, createdAt=2021-10-24T20:32:38.680171, updatedAt=2021-10-24T20:32:38.680171), User(id=5, name=martin, email=martin@another.com, createdAt=2021-10-24T20:32:38.690175, updatedAt=2021-10-24T20:32:38.690175)]
+Hibernate: 
+    select
+        user0_.id as id1_1_,
+        user0_.created_at as created_2_1_,
+        user0_.email as email3_1_,
+        user0_.name as name4_1_,
+        user0_.updated_at as updated_5_1_ 
+    from
+        user user0_ 
+    where
+        user0_.name=?
+findByNameEquals[User(id=1, name=martin, email=martin@fastcampus.com, createdAt=2021-10-24T20:32:38.680171, updatedAt=2021-10-24T20:32:38.680171), User(id=5, name=martin, email=martin@another.com, createdAt=2021-10-24T20:32:38.690175, updatedAt=2021-10-24T20:32:38.690175)]
+Hibernate: 
+    select
+        user0_.id as id1_1_,
+        user0_.created_at as created_2_1_,
+        user0_.email as email3_1_,
+        user0_.name as name4_1_,
+        user0_.updated_at as updated_5_1_ 
+    from
+        user user0_ 
+    where
+        user0_.name=?
+findByName[User(id=1, name=martin, email=martin@fastcampus.com, createdAt=2021-10-24T20:32:38.680171, updatedAt=2021-10-24T20:32:38.680171), User(id=5, name=martin, email=martin@another.com, createdAt=2021-10-24T20:32:38.690175, updatedAt=2021-10-24T20:32:38.690175)]
+```

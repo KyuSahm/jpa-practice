@@ -10,6 +10,8 @@ import java.util.Set;
 
 public interface UserRepository extends JpaRepository<User, Long> {
     List<User> findByName(String name);
+    List<User> findByNameIs(String name);
+    List<User> findByNameEquals(String name);
     User findByEmail(String email);
     User getByEmail(String email);
     User readByEmail(String email);
@@ -29,4 +31,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
     List<User> findByCreatedAtBetween(LocalDateTime yesterday, LocalDateTime tommorrow);
     List<User> findByIdBetween(Long id1, Long id2);
     List<User> findByIdGreaterThanEqualAndIdLessThanEqual(Long id1, Long id2);
+    List<User> findByIdIsNotNull();
+    //List<User> findByAddressIsNotEmpty();
+    List<User> findByNameIn(List<String> names);
+    List<User> findByNameStartingWith(String name);
+    List<User> findByNameEndingWith(String name);
+    List<User> findByNameContains(String name);
+    List<User> findByNameLike(String name);
 }
