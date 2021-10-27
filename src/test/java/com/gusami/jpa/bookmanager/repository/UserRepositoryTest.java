@@ -2,6 +2,7 @@ package com.gusami.jpa.bookmanager.repository;
 
 import com.gusami.jpa.bookmanager.domain.User;
 import org.assertj.core.util.Lists;
+import org.hibernate.criterion.Order;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -70,5 +71,18 @@ class UserRepositoryTest {
         System.out.println("findByNameIs" + userRepository.findByNameIs("martin"));
         System.out.println("findByNameEquals" + userRepository.findByNameEquals("martin"));
         System.out.println("findByName" + userRepository.findByName("martin"));
+    }
+
+    @Test
+    void pagingAndSortingTest() {
+        System.out.println("findTop1ByName" + userRepository.findTop1ByName("martin"));
+        System.out.println("findTop1ByName" + userRepository.findLast1ByName("martin"));
+        System.out.println("findTop1ByNameOrderByIdAsc" + userRepository.findTop1ByNameOrderByIdAsc("martin"));
+        System.out.println("findTop1ByNameOrderByIdDesc" + userRepository.findTop1ByNameOrderByIdDesc("martin"));
+        System.out.println("findFirstByNameOrderByIdDescEmailAsc" + userRepository.findFirstByNameOrderByIdDescEmailAsc("martin"));
+        System.out.println("findFirstByNameWithSortParams" + userRepository.findFirstByName("martin", Sort.by(Sort.Order.desc("id"))));
+        System.out.println("findFirstByNameWithSortParams" + userRepository.findFirstByName("martin", Sort.by(Sort.Order.desc("id"), Sort.Order.asc("email"))));
+        System.out.println("findByName" + userRepository.findByName("martin", PageRequest.of(1, 1, Sort.by(Sort.Order.desc("id")))).getContent());
+        System.out.println("findByName:" + userRepository.findByName("martin", PageRequest.of(1, 1, Sort.by(Sort.Order.desc("id")))).getTotalElements());
     }
 }

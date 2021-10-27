@@ -2693,3 +2693,505 @@ Hibernate:
         user0_.name=?
 findByName[User(id=1, name=martin, email=martin@fastcampus.com, createdAt=2021-10-24T20:32:38.680171, updatedAt=2021-10-24T20:32:38.680171), User(id=5, name=martin, email=martin@another.com, createdAt=2021-10-24T20:32:38.690175, updatedAt=2021-10-24T20:32:38.690175)]
 ```
+###### OrderByXXAsc, OrderByXXDesc
+- SQL의 ``Order By ASC`` or ``Order By DESC``가 적용됨
+- ``findTop1ByName``은 ``findTopByName``과 동일
+- ``findTop1ByName``은 ``findFirstByName``과 동일
+```java
+public interface UserRepository extends JpaRepository<User, Long> {
+    List<User> findTop1ByNameOrderByIdAsc(String name);
+    List<User> findTop1ByNameOrderByIdDesc(String name);
+}
+```
+```java
+@Test
+void pagingAndSortingTest() {
+    System.out.println("findTop1ByNameOrderByIdAsc" + userRepository.findTop1ByNameOrderByIdAsc("martin"));
+    System.out.println("findTop1ByNameOrderByIdDesc" + userRepository.findTop1ByNameOrderByIdDesc("martin"));
+}
+```
+```sql
+Hibernate: 
+    select
+        user0_.id as id1_1_,
+        user0_.created_at as created_2_1_,
+        user0_.email as email3_1_,
+        user0_.name as name4_1_,
+        user0_.updated_at as updated_5_1_ 
+    from
+        user user0_ 
+    where
+        user0_.name=? 
+    order by
+        user0_.id asc limit ?
+findTop1ByNameOrderByIdAsc[User(id=1, name=martin, email=martin@fastcampus.com, createdAt=2021-10-27T22:13:28.042903, updatedAt=2021-10-27T22:13:28.042903)]
+Hibernate: 
+    select
+        user0_.id as id1_1_,
+        user0_.created_at as created_2_1_,
+        user0_.email as email3_1_,
+        user0_.name as name4_1_,
+        user0_.updated_at as updated_5_1_ 
+    from
+        user user0_ 
+    where
+        user0_.name=? 
+    order by
+        user0_.id desc limit ?
+findTop1ByNameOrderByIdDesc[User(id=5, name=martin, email=martin@another.com, createdAt=2021-10-27T22:13:28.049908, updatedAt=2021-10-27T22:13:28.049908)]
+```
+- 여러 개의 칼럼의 정렬 조건을 추가할 수 있음
+- ``...OrderByIdDescEmailAsc``처럼 여러 칼럼의 정렬 조건을 나열
+```java
+public interface UserRepository extends JpaRepository<User, Long> {
+    List<User> findFirstByNameOrderByIdDescEmailAsc(String name);
+}
+```
+```java
+@Test
+void pagingAndSortingTest() {
+    System.out.println("findFirstByNameOrderByIdDescEmailAsc" + userRepository.findFirstByNameOrderByIdDescEmailAsc("martin"));
+}
+```
+```sql
+Hibernate: 
+    select
+        user0_.id as id1_1_,
+        user0_.created_at as created_2_1_,
+        user0_.email as email3_1_,
+        user0_.name as name4_1_,
+        user0_.updated_at as updated_5_1_ 
+    from
+        user user0_ 
+    where
+        user0_.name=? 
+    order by
+        user0_.id desc,
+        user0_.email asc limit ?
+findFirstByNameOrderByIdDescEmailAsc[User(id=5, name=martin, email=martin@another.com, createdAt=2021-10-27T22:19:28.806726, updatedAt=2021-10-27T22:19:28.806726)]
+```
+###### findFirstByName(String name, Sort sort)
+- Sort 인자를 이용하여 Sorting을 할 수도 있음
+- 메소드 이름을 사용하는 것보다 가독성이 좋음
+```java
+public interface UserRepository extends JpaRepository<User, Long> {
+    List<User> findFirstByName(String name, Sort sort);
+}
+```
+```java
+@Test
+void pagingAndSortingTest() {
+    System.out.println("findFirstByNameWithSortParams" + userRepository.findFirstByName("martin", Sort.by(Sort.Order.desc("id"))));
+    System.out.println("findFirstByNameWithSortParams" + userRepository.findFirstByName("martin", Sort.by(Sort.Order.desc("id"), Sort.Order.asc("email"))));
+}
+```
+```sql
+Hibernate: 
+    select
+        user0_.id as id1_1_,
+        user0_.created_at as created_2_1_,
+        user0_.email as email3_1_,
+        user0_.name as name4_1_,
+        user0_.updated_at as updated_5_1_ 
+    from
+        user user0_ 
+    where
+        user0_.name=? 
+    order by
+        user0_.id desc limit ?
+findFirstByNameWithSortParams[User(id=5, name=martin, email=martin@another.com, createdAt=2021-10-27T22:29:26.526609, updatedAt=2021-10-27T22:29:26.526609)]
+Hibernate: 
+    select
+        user0_.id as id1_1_,
+        user0_.created_at as created_2_1_,
+        user0_.email as email3_1_,
+        user0_.name as name4_1_,
+        user0_.updated_at as updated_5_1_ 
+    from
+        user user0_ 
+    where
+        user0_.name=? 
+    order by
+        user0_.id desc,
+        user0_.email asc limit ?
+findFirstByNameWithSortParams[User(id=5, name=martin, email=martin@another.com, createdAt=2021-10-27T22:33:11.972338, updatedAt=2021-10-27T22:33:11.972338)]
+```
+## Paging 관련 쿼리
+- 게시판, 쇼핑몰의 리뷰 정보들을 페이징 처리해서 관리
+- 아래의 interface의 정의처럼, ``Pageable``인자와 ``Page<T>`` 반환 타입을 사용하여 구현이 가능함
+- 하나의 Slie가 하나의 Page에 해당
+- 하나의 Page에 대한 정보, 전체 Page와 Elements 정보를 가지고 있음
+```java
+public interface PagingAndSortingRepository<T, ID> extends CrudRepository<T, ID> {
+	Iterable<T> findAll(Sort sort);
+	Page<T> findAll(Pageable pageable);
+}
+
+public interface Page<T> extends Slice<T> {
+
+	/**
+	 * Creates a new empty {@link Page}.
+	 *
+	 * @return
+	 * @since 2.0
+	 */
+	static <T> Page<T> empty() {
+		return empty(Pageable.unpaged());
+	}
+
+	/**
+	 * Creates a new empty {@link Page} for the given {@link Pageable}.
+	 *
+	 * @param pageable must not be {@literal null}.
+	 * @return
+	 * @since 2.0
+	 */
+	static <T> Page<T> empty(Pageable pageable) {
+		return new PageImpl<>(Collections.emptyList(), pageable, 0);
+	}
+
+	/**
+	 * Returns the number of total pages.
+	 *
+	 * @return the number of total pages
+	 */
+	int getTotalPages();
+
+	/**
+	 * Returns the total amount of elements.
+	 *
+	 * @return the total amount of elements
+	 */
+	long getTotalElements();
+
+	/**
+	 * Returns a new {@link Page} with the content of the current one mapped by the given {@link Function}.
+	 *
+	 * @param converter must not be {@literal null}.
+	 * @return a new {@link Page} with the content of the current one mapped by the given {@link Function}.
+	 * @since 1.10
+	 */
+	<U> Page<U> map(Function<? super T, ? extends U> converter);
+}
+
+public interface Slice<T> extends Streamable<T> {
+
+	/**
+	 * Returns the number of the current {@link Slice}. Is always non-negative.
+	 *
+	 * @return the number of the current {@link Slice}.
+	 */
+	int getNumber();
+
+	/**
+	 * Returns the size of the {@link Slice}.
+	 *
+	 * @return the size of the {@link Slice}.
+	 */
+	int getSize();
+
+	/**
+	 * Returns the number of elements currently on this {@link Slice}.
+	 *
+	 * @return the number of elements currently on this {@link Slice}.
+	 */
+	int getNumberOfElements();
+
+	/**
+	 * Returns the page content as {@link List}.
+	 *
+	 * @return
+	 */
+	List<T> getContent();
+
+	/**
+	 * Returns whether the {@link Slice} has content at all.
+	 *
+	 * @return
+	 */
+	boolean hasContent();
+
+	/**
+	 * Returns the sorting parameters for the {@link Slice}.
+	 *
+	 * @return
+	 */
+	Sort getSort();
+
+	/**
+	 * Returns whether the current {@link Slice} is the first one.
+	 *
+	 * @return
+	 */
+	boolean isFirst();
+
+	/**
+	 * Returns whether the current {@link Slice} is the last one.
+	 *
+	 * @return
+	 */
+	boolean isLast();
+
+	/**
+	 * Returns if there is a next {@link Slice}.
+	 *
+	 * @return if there is a next {@link Slice}.
+	 */
+	boolean hasNext();
+
+	/**
+	 * Returns if there is a previous {@link Slice}.
+	 *
+	 * @return if there is a previous {@link Slice}.
+	 */
+	boolean hasPrevious();
+
+	/**
+	 * Returns the {@link Pageable} that's been used to request the current {@link Slice}.
+	 *
+	 * @return
+	 * @since 2.0
+	 */
+	default Pageable getPageable() {
+		return PageRequest.of(getNumber(), getSize(), getSort());
+	}
+
+	/**
+	 * Returns the {@link Pageable} to request the next {@link Slice}. Can be {@link Pageable#unpaged()} in case the
+	 * current {@link Slice} is already the last one. Clients should check {@link #hasNext()} before calling this method.
+	 *
+	 * @return
+	 * @see #nextOrLastPageable()
+	 */
+	Pageable nextPageable();
+
+	/**
+	 * Returns the {@link Pageable} to request the previous {@link Slice}. Can be {@link Pageable#unpaged()} in case the
+	 * current {@link Slice} is already the first one. Clients should check {@link #hasPrevious()} before calling this
+	 * method.
+	 *
+	 * @return
+	 * @see #previousPageable()
+	 */
+	Pageable previousPageable();
+
+	/**
+	 * Returns a new {@link Slice} with the content of the current one mapped by the given {@link Converter}.
+	 *
+	 * @param converter must not be {@literal null}.
+	 * @return a new {@link Slice} with the content of the current one mapped by the given {@link Converter}.
+	 * @since 1.10
+	 */
+	<U> Slice<U> map(Function<? super T, ? extends U> converter);
+
+	/**
+	 * Returns the {@link Pageable} describing the next slice or the one describing the current slice in case it's the
+	 * last one.
+	 *
+	 * @return
+	 * @since 2.2
+	 */
+	default Pageable nextOrLastPageable() {
+		return hasNext() ? nextPageable() : getPageable();
+	}
+
+	/**
+	 * Returns the {@link Pageable} describing the previous slice or the one describing the current slice in case it's the
+	 * first one.
+	 *
+	 * @return
+	 * @since 2.2
+	 */
+	default Pageable previousOrFirstPageable() {
+		return hasPrevious() ? previousPageable() : getPageable();
+	}
+}
+
+public interface Pageable {
+
+	/**
+	 * Returns a {@link Pageable} instance representing no pagination setup.
+	 *
+	 * @return
+	 */
+	static Pageable unpaged() {
+		return Unpaged.INSTANCE;
+	}
+
+	/**
+	 * Creates a new {@link Pageable} for the first page (page number {@code 0}) given {@code pageSize} .
+	 *
+	 * @param pageSize the size of the page to be returned, must be greater than 0.
+	 * @return a new {@link Pageable}.
+	 * @since 2.5
+	 */
+	static Pageable ofSize(int pageSize) {
+		return PageRequest.of(0, pageSize);
+	}
+
+	/**
+	 * Returns whether the current {@link Pageable} contains pagination information.
+	 *
+	 * @return
+	 */
+	default boolean isPaged() {
+		return true;
+	}
+
+	/**
+	 * Returns whether the current {@link Pageable} does not contain pagination information.
+	 *
+	 * @return
+	 */
+	default boolean isUnpaged() {
+		return !isPaged();
+	}
+
+	/**
+	 * Returns the page to be returned.
+	 *
+	 * @return the page to be returned.
+	 */
+	int getPageNumber();
+
+	/**
+	 * Returns the number of items to be returned.
+	 *
+	 * @return the number of items of that page
+	 */
+	int getPageSize();
+
+	/**
+	 * Returns the offset to be taken according to the underlying page and page size.
+	 *
+	 * @return the offset to be taken
+	 */
+	long getOffset();
+
+	/**
+	 * Returns the sorting parameters.
+	 *
+	 * @return
+	 */
+	Sort getSort();
+
+	/**
+	 * Returns the current {@link Sort} or the given one if the current one is unsorted.
+	 *
+	 * @param sort must not be {@literal null}.
+	 * @return
+	 */
+	default Sort getSortOr(Sort sort) {
+
+		Assert.notNull(sort, "Fallback Sort must not be null!");
+
+		return getSort().isSorted() ? getSort() : sort;
+	}
+
+	/**
+	 * Returns the {@link Pageable} requesting the next {@link Page}.
+	 *
+	 * @return
+	 */
+	Pageable next();
+
+	/**
+	 * Returns the previous {@link Pageable} or the first {@link Pageable} if the current one already is the first one.
+	 *
+	 * @return
+	 */
+	Pageable previousOrFirst();
+
+	/**
+	 * Returns the {@link Pageable} requesting the first page.
+	 *
+	 * @return
+	 */
+	Pageable first();
+
+	/**
+	 * Creates a new {@link Pageable} with {@code pageNumber} applied.
+	 *
+	 * @param pageNumber
+	 * @return a new {@link PageRequest}.
+	 * @since 2.5
+	 */
+	Pageable withPage(int pageNumber);
+
+	/**
+	 * Returns whether there's a previous {@link Pageable} we can access from the current one. Will return
+	 * {@literal false} in case the current {@link Pageable} already refers to the first page.
+	 *
+	 * @return
+	 */
+	boolean hasPrevious();
+
+	/**
+	 * Returns an {@link Optional} so that it can easily be mapped on.
+	 *
+	 * @return
+	 */
+	default Optional<Pageable> toOptional() {
+		return isUnpaged() ? Optional.empty() : Optional.of(this);
+	}
+
+}
+```
+- PageRequest를 이용하여 Pageable 인자를 생성할 수 있음
+  - PageRequest의 페이지는 0 based index임
+```java
+Page<User> findByName(String name, Pageable pageable);
+```
+```java
+@Test
+void pagingAndSortingTest() {
+    System.out.println("findByName" + userRepository.findByName("martin", PageRequest.of(1, 1, Sort.by(Sort.Order.desc("id")))).getContent());
+    System.out.println("findByName:" + userRepository.findByName("martin", PageRequest.of(1, 1, Sort.by(Sort.Order.desc("id")))).getTotalElements());
+}
+```
+```sql
+Hibernate: 
+    select
+        user0_.id as id1_1_,
+        user0_.created_at as created_2_1_,
+        user0_.email as email3_1_,
+        user0_.name as name4_1_,
+        user0_.updated_at as updated_5_1_ 
+    from
+        user user0_ 
+    where
+        user0_.name=? 
+    order by
+        user0_.id desc limit ? offset ?
+Hibernate: 
+    select
+        count(user0_.id) as col_0_0_ 
+    from
+        user user0_ 
+    where
+        user0_.name=?
+findByName[User(id=1, name=martin, email=martin@fastcampus.com, createdAt=2021-10-27T23:11:14.977694, updatedAt=2021-10-27T23:11:14.977694)]
+Hibernate: 
+    select
+        user0_.id as id1_1_,
+        user0_.created_at as created_2_1_,
+        user0_.email as email3_1_,
+        user0_.name as name4_1_,
+        user0_.updated_at as updated_5_1_ 
+    from
+        user user0_ 
+    where
+        user0_.name=? 
+    order by
+        user0_.id desc limit ? offset ?
+Hibernate: 
+    select
+        count(user0_.id) as col_0_0_ 
+    from
+        user user0_ 
+    where
+        user0_.name=?
+findByName:2
+```
+
+

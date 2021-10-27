@@ -1,6 +1,9 @@
 package com.gusami.jpa.bookmanager.repository;
 
 import com.gusami.jpa.bookmanager.domain.User;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDateTime;
@@ -21,7 +24,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
     User findUserByEmail(String email);
     User findSomethingByEmail(String email);
     List<User> findFirst2ByName(String name);
+    User findTop1ByName(String name);
     List<User> findTop2ByName(String name);
+    List<User> findLast1ByName(String name);
     List<User> findByEmailAndName(String email, String name);
     List<User> findByEmailOrName(String email, String name);
     List<User> findByCreatedAtAfter(LocalDateTime yesterday);
@@ -38,4 +43,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
     List<User> findByNameEndingWith(String name);
     List<User> findByNameContains(String name);
     List<User> findByNameLike(String name);
+    List<User> findTop1ByNameOrderByIdAsc(String name);
+    List<User> findTop1ByNameOrderByIdDesc(String name);
+    List<User> findFirstByNameOrderByIdDescEmailAsc(String name);
+    List<User> findFirstByName(String name, Sort sort);
+    Page<User> findByName(String name, Pageable pageable);
 }
