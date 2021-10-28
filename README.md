@@ -232,25 +232,82 @@ bookmanager // com.fastcampus.jpa.bookmanager이라는 패키지가 기본적으
   - 테이블 상의 Primary Key와 같은 의미를 가지며, @Id Annotation으로 표기
 
 ###### @Table
-- 명시적으로 데이터베이스상의 테이블 명칭을 지정
+- 명시적으로 데이터베이스상의 테이블 명칭, 스키마, 카탈로그를 지정 가능
+- Unique Constraint와 Index도 지정 가능  
 - 명시적으로 작성하는 것이 관례
   - 데이터베이스 상에서 보편적으로 사용되는 명명법이 UnderScore 원칙 때문
 - 지정하지 않으면 Entity 클래스의 이름 그대로 CamelCase를 유지한 채로 테이블 생성
+- 일반적으로 테이블은 SQL문으로 생성 후, Mapping해서 쓰는게 관례
+```java
+@Target(TYPE) 
+@Retention(RUNTIME)
+public @interface Table {
+
+    /**
+     * (Optional) The name of the table.
+     * <p> Defaults to the entity name.
+     */
+    String name() default "";
+
+    /** (Optional) The catalog of the table.
+     * <p> Defaults to the default catalog.
+     */
+    String catalog() default "";
+
+    /** (Optional) The schema of the table.
+     * <p> Defaults to the default schema for user.
+     */
+    String schema() default "";
+
+    /**
+     * (Optional) Unique constraints that are to be placed on 
+     * the table. These are only used if table generation is in 
+     * effect. These constraints apply in addition to any constraints 
+     * specified by the <code>Column</code> and <code>JoinColumn</code> 
+     * annotations and constraints entailed by primary key mappings.
+     * <p> Defaults to no additional constraints.
+     */
+    UniqueConstraint[] uniqueConstraints() default {};
+
+    /**
+     * (Optional) Indexes for the table.  These are only used if
+     * table generation is in effect.  Note that it is not necessary
+     * to specify an index for a primary key, as the primary key
+     * index will be created automatically.
+     *
+     * @since 2.1
+     */
+    Index[] indexes() default {};
+}
+```
 
 ```java
-@Entity
-@Table(name = "USER")
+@@Entity
+@Table(name="user", indexes={@Index(columnList="name")}, uniqueConstraints={@UniqueConstraint(columnNames={"email"})} )
 public class User {
     @Id
     @GeneratedValue
     private Long id;
-    @NonNull
     private String name;
-    @NonNull
     private String email;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }
+```
+```sql
+Hibernate:
+    create table user (
+       id bigint not null,
+        created_at timestamp,
+        email varchar(255),
+        name varchar(255),
+        updated_at timestamp,
+        primary key (id)
+    )
+Hibernate: create index IDXgj2fy3dcix7ph7k8684gka40c on user (name)
+Hibernate:
+    alter table user 
+       add constraint UKob8kqyqqgmefl0aco34akdtpe unique (email)
 ```
 ###### @Id
 - 데이터베이스의 테이블은 기본적으로 유일한 키(Primary Key) 가짐
@@ -351,7 +408,6 @@ public class BookId implements Serializable {
     private String language;
 
     // default constructor
-
     public BookId(String title, String language) {
         this.title = title;
         this.language = language;
@@ -1261,7 +1317,7 @@ public abstract class AbstractPersistable<PK extends Serializable> implements Pe
 		return null == getId();
 	}
 }
-``` 
+```
 ```java
 @SpringBootTest
 class UserRepositoryTest {
@@ -3193,5 +3249,117 @@ Hibernate:
         user0_.name=?
 findByName:2
 ```
+## Entity의 기본 속성 (annotation)
+- Entity Annotation
+  - 별 내용이 없고, 단지 Entity라는 것을 표시
+```java
+@Documented
+@Target(TYPE)
+@Retention(RUNTIME)
+public @interface Entity {
 
+	/**
+	 * (Optional) The entity name. Defaults to the unqualified
+	 * name of the entity class. This name is used to refer to the
+	 * entity in queries. The name must not be a reserved literal
+	 * in the Jakarta Persistence query language.
+	 */
+	String name() default "";
+}
 
+```
+#### @Entity
+- Entity 객체에는 반드시 Primary Key가 존재해야 함
+  - ``@Id`` annotation을 통해서 Primary Key가 되는 칼럼 지정
+  - ``@GeneratedValue`` annotation은 자동 생성된 값을 사용하겠다는 의미
+    - ``strategy`` 엘리먼트를 통해 자동 생성하는 방법을 선택
+    - ``GenerationType`` 열거타입은 ``TABLE``, ``SEQUENCE``, ``IDENTITY``, ``AUTO`` 중 하나
+    - ``IDENTITY`` 열거 상수는 MySQL, MariaDB에서 주로 사용
+      - DB 칼럼의 Auto Increment 속성을 이용
+      - 트랜잭션이 종료되기 전에 insert문에 의해 증가된 값을 사전에 받아오기 때문에, Rollback이 되더라도 그냥 증가
+      - 중간에 빠진 값들이 존재할 가능성이 존재
+    - ``SEQUENCE`` 열거 상수는 Oracle, PostgreSQL, H2에서 주로 사용 
+      - insert 문이 수행될 때, SEQUENCE로부터 증가된 값을 받아서 칼럼값으로 사용
+    - ``TABLE`` 열거 상수는 DB 종류에 관련없음
+      - ID를 관리하는 별도의 테이블을 생성
+      - 테이블에서 지속적으로 ID값을 추출해서 사용
+    - ``AUTO`` 열거 상수는 DB에 적합한 상수를  Persistence Provider이 선택해서 사용 
+      - 일반적으로 DB를 고정해서 사용하므로, Auto가 아니라 한 개의 값을 지정해서 사용    
+```java
+@Target({METHOD, FIELD})
+@Retention(RUNTIME)
+
+public @interface GeneratedValue {
+
+    /**
+     * (Optional) The primary key generation strategy
+     * that the persistence provider must use to
+     * generate the annotated entity primary key.
+     */
+    GenerationType strategy() default AUTO;
+
+    /**
+     * (Optional) The name of the primary key generator
+     * to use as specified in the {@link SequenceGenerator} 
+     * or {@link TableGenerator} annotation.
+     * <p> Defaults to the id generator supplied by persistence provider.
+     */
+    String generator() default "";
+}
+
+/** 
+ * Defines the types of primary key generation strategies. 
+ *
+ * @see GeneratedValue
+ *
+ * @since 1.0
+ */
+public enum GenerationType { 
+
+    /**
+     * Indicates that the persistence provider must assign 
+     * primary keys for the entity using an underlying 
+     * database table to ensure uniqueness.
+     */
+    TABLE, 
+
+    /**
+     * Indicates that the persistence provider must assign 
+     * primary keys for the entity using a database sequence.
+     */
+    SEQUENCE, 
+
+    /**
+     * Indicates that the persistence provider must assign 
+     * primary keys for the entity using a database identity column.
+     */
+    IDENTITY, 
+
+    /**
+     * Indicates that the persistence provider should pick an 
+     * appropriate strategy for the particular database. The 
+     * <code>AUTO</code> generation strategy may expect a database 
+     * resource to exist, or it may attempt to create one. A vendor 
+     * may provide documentation on how to create such resources 
+     * in the event that it does not support schema generation 
+     * or cannot create the schema resource at runtime.
+     */
+    AUTO
+}
+```
+```sql
+-- Oracle Sequence example
+CREATE SEQUENCE Order_seq
+    START WITH 1
+    INCREMENT BY 1
+    NOMAXVALUE
+    NOCYCLE
+    CACHE 20;
+
+INSERT INTO Orders_tab (Orderno, Custno)
+    VALUES (Order_seq.NEXTVAL, 1032);
+
+UPDATE Orders_tab
+    SET Orderno = Order_seq.NEXTVAL
+    WHERE Orderno = 10112;    
+```
